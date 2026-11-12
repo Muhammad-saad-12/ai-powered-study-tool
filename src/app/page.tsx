@@ -475,6 +475,28 @@ export default function HomePage() {
   const [generatingStudyMaterialsDocId, setGeneratingStudyMaterialsDocId] = useState<string | null>(null)
   const [summaryErrors, setSummaryErrors] = useState<{ [docId: string]: string }>({})
   const [studyMaterialsErrors, setStudyMaterialsErrors] = useState<{ [docId: string]: string }>({})
+  const [isRefilling, setIsRefilling] = useState(false)
+
+  // Handle credits refill (POST /api/credits/refill)
+  const handleRefillCredits = async () => {
+    setIsRefilling(true)
+    try {
+      const res = await fetch('/api/credits/refill', {
+        method: 'POST',
+      })
+      const data = await res.json()
+      if (res.ok && typeof data.credits === 'number') {
+        setCurrentUser((prev) => (prev ? { ...prev, credits: data.credits } : null))
+      } else {
+        alert(data.error || 'Failed to refill credits')
+      }
+    } catch (err) {
+      console.error('Error refilling credits:', err)
+      alert('Network error while refilling credits')
+    } finally {
+      setIsRefilling(false)
+    }
+  }
 
   // Fetch current user from /api/auth/me
   const fetchCurrentUser = useCallback(async () => {
@@ -855,10 +877,20 @@ export default function HomePage() {
 
           {currentUser ? (
             <div className="flex items-center gap-3">
-              {/* Credit Balance Badge */}
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs font-mono shadow-xs">
-                <Coins className="w-3.5 h-3.5 text-zinc-400" />
-                <span>{currentUser.credits} credits</span>
+              {/* Credit Balance Badge & Refill */}
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs font-mono shadow-xs">
+                  <Coins className="w-3.5 h-3.5 text-zinc-400" />
+                  <span>{currentUser.credits} credits</span>
+                </div>
+                <button
+                  onClick={handleRefillCredits}
+                  disabled={isRefilling}
+                  className="px-2.5 py-1 rounded-md bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 font-mono text-xs transition shadow-xs disabled:opacity-50"
+                  title="Refill 5 credits (max 20)"
+                >
+                  {isRefilling ? '+...' : '+5 Refill'}
+                </button>
               </div>
 
               {/* User Email & Logout */}
