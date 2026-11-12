@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Sparkles,
   ShieldCheck,
@@ -16,6 +16,14 @@ import {
   Mail,
   Zap,
   Terminal,
+  FileText,
+  UploadCloud,
+  FileUp,
+  File,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  Layers,
 } from 'lucide-react'
 
 interface User {
@@ -24,6 +32,16 @@ interface User {
   credits: number
   createdAt: string
   updatedAt?: string
+}
+
+interface DocumentItem {
+  id: string
+  title: string
+  content: string
+  fileType: string
+  userId: string
+  createdAt: string
+  updatedAt: string
 }
 
 interface ApiLog {
@@ -47,10 +65,25 @@ export default function HomePage() {
   const [formError, setFormError] = useState<string | null>(null)
   const [formSuccess, setFormSuccess] = useState<string | null>(null)
 
-  // Credit action loading state
+  // Documents state
+  const [documents, setDocuments] = useState<DocumentItem[]>([])
+  const [isLoadingDocs, setIsLoadingDocs] = useState(false)
+  const [expandedDocId, setExpandedDocId] = useState<string | null>(null)
+
+  // Document upload/paste form state
+  const [inputMode, setInputMode] = useState<'upload' | 'paste'>('upload')
+  const [docTitle, setDocTitle] = useState('')
+  const [docContent, setDocContent] = useState('')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [docSubmitting, setDocSubmitting] = useState(false)
+  const [docError, setDocError] = useState<string | null>(null)
+  const [docSuccess, setDocSuccess] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Quick Credit action loading state
   const [creditActionLoading, setCreditActionLoading] = useState(false)
 
-  // API logs to verify requests in real time
+  // Live API logs
   const [logs, setLogs] = useState<ApiLog[]>([])
 
   const addLog = (endpoint: string, method: string, status: number, data: unknown) => {
@@ -62,7 +95,7 @@ export default function HomePage() {
       status,
       data,
     }
-    setLogs((prev) => [newLog, ...prev.slice(0, 7)])
+    setLogs((prev) => [newLog, ...prev.slice(0, 9)])
   }
 
   // Fetch current user from /api/auth/me
@@ -86,9 +119,35 @@ export default function HomePage() {
     }
   }, [])
 
+  // Fetch user's documents from /api/documents
+  const fetchDocuments = useCallback(async () => {
+    setIsLoadingDocs(true)
+    try {
+      const res = await fetch('/api/documents')
+      const data = await res.json()
+      addLog('/api/documents', 'GET', res.status, data)
+
+      if (res.ok && Array.isArray(data.documents)) {
+        setDocuments(data.documents)
+      }
+    } catch (err) {
+      console.error('Failed to fetch documents', err)
+    } finally {
+      setIsLoadingDocs(false)
+    }
+  }, [])
+
   useEffect(() => {
     fetchCurrentUser()
   }, [fetchCurrentUser])
+
+  useEffect(() => {
+    if (currentUser) {
+      fetchDocuments()
+    } else {
+      setDocuments([])
+    }
+  }, [currentUser, fetchDocuments])
 
   // Handle register/login form submission
   const handleAuthSubmit = async (e: React.FormEvent) => {
@@ -132,6 +191,7 @@ export default function HomePage() {
       const data = await res.json()
       addLog('/api/auth/logout', 'POST', res.status, data)
       setCurrentUser(null)
+      setDocuments([])
       setFormSuccess('Logged out successfully')
       setFormError(null)
     } catch {
@@ -141,10 +201,88 @@ export default function HomePage() {
     }
   }
 
+  // Handle document submission (file upload or text paste)
+  const handleDocumentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setDocError(null)
+    setDocSuccess(null)
+
+    if (currentUser && currentUser.credits < 1) {
+      setDocError('Insufficient credits! You need at least 1 credit to process a document.')
+      return
+    }
+
+    setDocSubmitting(true)
+
+    try {
+      let res: Response
+
+      if (inputMode === 'upload') {
+        if (!selectedFile) {
+          setDocError('Please select a PDF or TXT file to upload')
+          setDocSubmitting(false)
+          return
+        }
+
+        const formData = new FormData()
+        formData.append('file', selectedFile)
+        if (docTitle.trim()) {
+          formData.append('title', docTitle.trim())
+        }
+
+        res = await fetch('/api/documents', {
+          method: 'POST',
+          body: formData,
+        })
+      } else {
+        // Text paste mode
+        if (!docContent.trim()) {
+          setDocError('Please paste or enter document content')
+          setDocSubmitting(false)
+          return
+        }
+
+        res = await fetch('/api/documents', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: docTitle.trim() || undefined,
+            content: docContent.trim(),
+            fileType: 'text',
+          }),
+        })
+      }
+
+      const data = await res.json()
+      addLog('/api/documents', 'POST', res.status, data)
+
+      if (!res.ok) {
+        setDocError(data.error || 'Failed to process document')
+      } else {
+        setDocSuccess(data.message || 'Document uploaded and 1 credit deducted!')
+        // Update user credits immediately
+        if (typeof data.remainingCredits === 'number') {
+          setCurrentUser((prev) => (prev ? { ...prev, credits: data.remainingCredits } : null))
+        }
+        // Reset form inputs
+        setDocTitle('')
+        setDocContent('')
+        setSelectedFile(null)
+        if (fileInputRef.current) fileInputRef.current.value = ''
+        // Refresh documents list
+        fetchDocuments()
+      }
+    } catch {
+      setDocError('Network error occurred while uploading document.')
+    } finally {
+      setDocSubmitting(false)
+    }
+  }
+
   // Handle credit consumption or reset
   const handleCreditAction = async (action: 'use' | 'reset') => {
     setCreditActionLoading(true)
-    setFormError(null)
+    setDocError(null)
     try {
       const res = await fetch('/api/user/credits', {
         method: 'POST',
@@ -155,12 +293,12 @@ export default function HomePage() {
       addLog('/api/user/credits', 'POST', res.status, data)
 
       if (!res.ok) {
-        setFormError(data.error || 'Failed to update credits')
+        setDocError(data.error || 'Failed to update credits')
       } else if (data.user) {
         setCurrentUser(data.user)
       }
     } catch {
-      setFormError('Error connecting to credit service')
+      setDocError('Error connecting to credit service')
     } finally {
       setCreditActionLoading(false)
     }
@@ -168,7 +306,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
-      {/* Top Navigation */}
+      {/* Top Header */}
       <header className="border-b border-slate-800 bg-slate-900/60 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -180,7 +318,7 @@ export default function HomePage() {
                 AI Productivity Platform
               </span>
               <span className="ml-2 px-2 py-0.5 text-xs font-medium rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                Next.js App Router
+                PDF & Text Parser
               </span>
             </div>
           </div>
@@ -199,7 +337,7 @@ export default function HomePage() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-12 flex flex-col items-center">
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-10 flex flex-col items-center">
         {isLoadingUser ? (
           <div className="flex flex-col items-center justify-center my-auto py-24">
             <RefreshCw className="w-8 h-8 text-indigo-400 animate-spin mb-4" />
@@ -207,14 +345,14 @@ export default function HomePage() {
           </div>
         ) : currentUser ? (
           /* ================= Authenticated Dashboard ================= */
-          <div className="w-full space-y-6">
-            {/* Welcome & Overview Card */}
+          <div className="w-full space-y-8">
+            {/* Top Welcome & Summary Banner */}
             <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900/90 to-indigo-950/40 border border-slate-800 p-6 sm:p-8 shadow-xl">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                      Authenticated Session
+                      Active User Session
                     </span>
                     <span className="text-xs text-slate-400">ID: {currentUser.id}</span>
                   </div>
@@ -223,148 +361,415 @@ export default function HomePage() {
                     <span className="text-indigo-400">{currentUser.email}</span>
                   </h1>
                   <p className="text-slate-400 text-sm mt-1">
-                    Your account is configured with full email/password authentication & credit quota.
+                    Upload PDF / TXT documents or paste text to parse and store them. Each document deduction requires 1 credit.
                   </p>
                 </div>
 
-                <button
-                  onClick={handleLogout}
-                  disabled={formLoading}
-                  className="self-start sm:self-auto inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700/80 text-slate-200 text-sm font-medium border border-slate-700/60 transition shadow-sm hover:text-white"
-                >
-                  <LogOut className="w-4 h-4 text-red-400" />
-                  Sign Out
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => handleCreditAction('reset')}
+                    disabled={creditActionLoading}
+                    className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700/80 text-amber-300 text-xs font-medium border border-slate-700/60 transition shadow-sm"
+                    title="Reset credits to 10"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    Reset Credits (10)
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    disabled={formLoading}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700/80 text-slate-200 text-xs font-medium border border-slate-700/60 transition shadow-sm hover:text-white"
+                  >
+                    <LogOut className="w-4 h-4 text-red-400" />
+                    Sign Out
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Metric & Status Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Credits Card (Prominent requirement) */}
-              <div className="relative overflow-hidden rounded-2xl bg-slate-900 border border-indigo-500/30 p-6 shadow-lg shadow-indigo-950/40 md:col-span-1">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2 text-indigo-400 font-semibold text-sm">
-                    <Coins className="w-5 h-5 text-amber-400" />
+            {/* Metrics Overview Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              {/* Remaining Credits Card */}
+              <div className="rounded-2xl bg-slate-900 border border-indigo-500/30 p-6 shadow-lg shadow-indigo-950/30">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-semibold text-indigo-400 flex items-center gap-1.5">
+                    <Coins className="w-4 h-4 text-amber-400" />
                     Remaining Credits
-                  </div>
+                  </span>
                   <span
-                    className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
-                      currentUser.credits > 3
+                    className={`px-2 py-0.5 text-[11px] font-semibold rounded-full ${
+                      currentUser.credits > 2
                         ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                         : currentUser.credits > 0
                         ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
                         : 'bg-red-500/10 text-red-400 border border-red-500/20'
                     }`}
                   >
-                    {currentUser.credits > 0 ? 'Active Quota' : 'Exhausted'}
+                    {currentUser.credits > 0 ? `${currentUser.credits} Available` : '0 Credits (403)'}
                   </span>
                 </div>
-
-                <div className="flex items-baseline gap-2 mb-3">
-                  <span className="text-5xl font-black tracking-tight text-white">
-                    {currentUser.credits}
-                  </span>
-                  <span className="text-slate-400 text-sm font-medium">credits available</span>
+                <div className="flex items-baseline gap-2 mb-2">
+                  <span className="text-4xl font-extrabold text-white">{currentUser.credits}</span>
+                  <span className="text-slate-400 text-xs">credits</span>
                 </div>
-
-                {/* Progress Visual */}
-                <div className="w-full bg-slate-800 rounded-full h-2.5 mb-5 overflow-hidden">
+                <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
                   <div
-                    className={`h-2.5 rounded-full transition-all duration-500 ${
-                      currentUser.credits > 3
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      currentUser.credits > 2
                         ? 'bg-gradient-to-r from-indigo-500 to-amber-400'
                         : 'bg-red-500'
                     }`}
                     style={{ width: `${Math.min(100, (currentUser.credits / 10) * 100)}%` }}
                   />
                 </div>
+              </div>
 
-                {/* Credit Action Buttons */}
-                <div className="flex flex-col gap-2">
-                  <button
-                    onClick={() => handleCreditAction('use')}
-                    disabled={creditActionLoading || currentUser.credits <= 0}
-                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition shadow-md shadow-indigo-600/20"
-                  >
-                    <Zap className="w-4 h-4 text-amber-300" />
-                    Simulate AI Action (-1 Credit)
-                  </button>
-                  <button
-                    onClick={() => handleCreditAction('reset')}
-                    disabled={creditActionLoading}
-                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700/80 text-slate-300 text-xs font-medium border border-slate-700 transition"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    Reset Credits to Default (10)
-                  </button>
+              {/* Total Documents Card */}
+              <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-md">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
+                    <FileText className="w-4 h-4 text-blue-400" />
+                    Uploaded Documents
+                  </span>
+                  <span className="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                    Saved in PostgreSQL
+                  </span>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-4xl font-extrabold text-white">{documents.length}</span>
+                  <span className="text-slate-400 text-xs">documents parsed</span>
                 </div>
               </div>
 
-              {/* Account Details Card */}
-              <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-md md:col-span-1 flex flex-col justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-300 mb-4 flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-indigo-400" />
-                    Security & Token Info
-                  </h3>
-                  <div className="space-y-3 text-xs">
-                    <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80">
-                      <div className="text-slate-400 mb-0.5">Authentication Mode</div>
-                      <div className="text-slate-200 font-medium">HTTP-Only Cookie (`auth_token`)</div>
-                    </div>
-                    <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80">
-                      <div className="text-slate-400 mb-0.5">JWT Algorithm</div>
-                      <div className="text-slate-200 font-medium">HMAC-SHA256 (via jose library)</div>
-                    </div>
-                    <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80">
-                      <div className="text-slate-400 mb-0.5">Password Hash</div>
-                      <div className="text-slate-200 font-medium">bcryptjs (Salt rounds: 10)</div>
-                    </div>
-                  </div>
+              {/* Quick AI Task / Deduct Test */}
+              <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-md flex flex-col justify-between">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
+                    <Zap className="w-4 h-4 text-amber-400" />
+                    Quota Cost
+                  </span>
+                  <span className="text-xs text-slate-500">Transaction Safe</span>
                 </div>
-
+                <p className="text-xs text-slate-400 mb-3">
+                  POST /api/documents parses files, verifies credits, and deducts 1 credit inside a Prisma transaction.
+                </p>
                 <button
-                  onClick={fetchCurrentUser}
-                  className="mt-4 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700/80 transition"
+                  onClick={() => handleCreditAction('use')}
+                  disabled={creditActionLoading || currentUser.credits <= 0}
+                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700/80 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium text-slate-300 border border-slate-700 transition"
                 >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  Test GET /api/auth/me Sync
+                  <Zap className="w-3.5 h-3.5 text-amber-300" />
+                  Test Direct -1 Credit
                 </button>
-              </div>
-
-              {/* Database Schema Card */}
-              <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-md md:col-span-1 flex flex-col justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-300 mb-4 flex items-center gap-2">
-                    <Database className="w-4 h-4 text-emerald-400" />
-                    Prisma User Model Schema
-                  </h3>
-                  <div className="p-3 rounded-xl bg-slate-950 font-mono text-[11px] text-slate-300 leading-relaxed border border-slate-800 space-y-1">
-                    <div><span className="text-purple-400">id</span>: String @id @default(cuid())</div>
-                    <div><span className="text-purple-400">email</span>: {currentUser.email}</div>
-                    <div><span className="text-purple-400">PasswordHash</span>: [bcrypt hash stored]</div>
-                    <div><span className="text-purple-400">credits</span>: {currentUser.credits} (default: 10)</div>
-                    <div><span className="text-purple-400">createdAt</span>: {new Date(currentUser.createdAt).toLocaleString()}</div>
-                  </div>
-                </div>
-
-                <div className="mt-4 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  <span>Synced with PostgreSQL database</span>
-                </div>
               </div>
             </div>
 
+            {/* Upload Document / Paste Text Section */}
+            <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 sm:p-8 shadow-xl">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div>
+                  <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                    <FileUp className="w-5 h-5 text-indigo-400" />
+                    Add New Document
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Upload a PDF/TXT file to extract plain text with `pdf-parse` or paste content directly. Costs 1 credit.
+                  </p>
+                </div>
+
+                {/* Input Mode Toggle */}
+                <div className="flex p-1 bg-slate-950 rounded-xl border border-slate-800 self-start sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInputMode('upload')
+                      setDocError(null)
+                      setDocSuccess(null)
+                    }}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+                      inputMode === 'upload'
+                        ? 'bg-indigo-600 text-white shadow'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <UploadCloud className="w-3.5 h-3.5" />
+                    Upload File (PDF/TXT)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInputMode('paste')
+                      setDocError(null)
+                      setDocSuccess(null)
+                    }}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+                      inputMode === 'paste'
+                        ? 'bg-indigo-600 text-white shadow'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    Paste Text
+                  </button>
+                </div>
+              </div>
+
+              {/* Status Feedback Alerts */}
+              {docError && (
+                <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{docError}</span>
+                </div>
+              )}
+              {docSuccess && (
+                <div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>{docSuccess}</span>
+                </div>
+              )}
+
+              {/* Form */}
+              <form onSubmit={handleDocumentSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                    Document Title (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={docTitle}
+                    onChange={(e) => setDocTitle(e.target.value)}
+                    placeholder={
+                      inputMode === 'upload'
+                        ? 'Leave blank to use filename'
+                        : 'e.g. Project Architecture Plan'
+                    }
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+                  />
+                </div>
+
+                {inputMode === 'upload' ? (
+                  <div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                      Choose PDF or TXT File
+                    </label>
+                    <div className="border-2 border-dashed border-slate-800 hover:border-indigo-500/50 rounded-2xl p-6 text-center bg-slate-950/40 transition">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".pdf,.txt,application/pdf,text/plain"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] || null
+                          setSelectedFile(file)
+                          if (file && !docTitle) {
+                            setDocTitle(file.name)
+                          }
+                        }}
+                        className="hidden"
+                        id="document-file-input"
+                      />
+                      <label
+                        htmlFor="document-file-input"
+                        className="cursor-pointer flex flex-col items-center justify-center gap-2"
+                      >
+                        <div className="w-12 h-12 rounded-2xl bg-indigo-600/10 text-indigo-400 flex items-center justify-center mb-1">
+                          <UploadCloud className="w-6 h-6" />
+                        </div>
+                        {selectedFile ? (
+                          <div className="text-center">
+                            <span className="text-sm font-semibold text-emerald-400 block">
+                              {selectedFile.name}
+                            </span>
+                            <span className="text-xs text-slate-500">
+                              {(selectedFile.size / 1024).toFixed(1)} KB • Click to choose a different file
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="text-center">
+                            <span className="text-sm font-medium text-indigo-400 hover:text-indigo-300 block">
+                              Click to browse and upload
+                            </span>
+                            <span className="text-xs text-slate-500">
+                              Supports PDF documents and plain TXT files
+                            </span>
+                          </div>
+                        )}
+                      </label>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-xs font-medium text-slate-300">
+                        Paste Document Text
+                      </label>
+                      <span className="text-[11px] text-slate-500">
+                        {docContent.length} characters
+                      </span>
+                    </div>
+                    <textarea
+                      rows={5}
+                      value={docContent}
+                      onChange={(e) => setDocContent(e.target.value)}
+                      placeholder="Paste meeting notes, specifications, articles, or transcripts here..."
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition font-mono leading-relaxed"
+                    />
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between pt-2">
+                  <div className="text-xs text-slate-400 flex items-center gap-1.5">
+                    <Coins className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Cost: 1 Credit</span>
+                    <span className="text-slate-600">•</span>
+                    <span>Remaining after: {Math.max(0, currentUser.credits - 1)}</span>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={
+                      docSubmitting ||
+                      currentUser.credits < 1 ||
+                      (inputMode === 'upload' && !selectedFile) ||
+                      (inputMode === 'paste' && !docContent.trim())
+                    }
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold transition shadow-lg shadow-indigo-600/25"
+                  >
+                    {docSubmitting ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        Parsing & Deducting Credit...
+                      </>
+                    ) : (
+                      <>
+                        <FileUp className="w-4 h-4" />
+                        Process & Save Document (-1 Credit)
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* List of Uploaded Documents */}
+            <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 sm:p-8 shadow-xl">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Layers className="w-5 h-5 text-indigo-400" />
+                    Your Uploaded Documents
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Retrieved via GET /api/documents from PostgreSQL
+                  </p>
+                </div>
+
+                <button
+                  onClick={fetchDocuments}
+                  disabled={isLoadingDocs}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isLoadingDocs ? 'animate-spin' : ''}`} />
+                  Refresh List
+                </button>
+              </div>
+
+              {isLoadingDocs && documents.length === 0 ? (
+                <div className="py-12 flex flex-col items-center justify-center text-slate-400 text-xs">
+                  <RefreshCw className="w-6 h-6 animate-spin text-indigo-400 mb-2" />
+                  Loading your documents...
+                </div>
+              ) : documents.length === 0 ? (
+                <div className="py-12 text-center rounded-2xl border border-dashed border-slate-800 bg-slate-950/40">
+                  <File className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+                  <p className="text-sm font-medium text-slate-300">No documents uploaded yet</p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Upload your first PDF or TXT file above to get started.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {documents.map((doc) => {
+                    const isExpanded = expandedDocId === doc.id
+                    return (
+                      <div
+                        key={doc.id}
+                        className="rounded-2xl bg-slate-950 border border-slate-800/80 hover:border-slate-700 transition overflow-hidden"
+                      >
+                        <div
+                          onClick={() => setExpandedDocId(isExpanded ? null : doc.id)}
+                          className="p-4 flex items-center justify-between cursor-pointer select-none"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center shrink-0">
+                              <FileText className="w-4 h-4 text-indigo-400" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h3 className="text-sm font-semibold text-white truncate max-w-sm sm:max-w-md">
+                                  {doc.title}
+                                </h3>
+                                <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase shrink-0">
+                                  {doc.fileType}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-3 text-xs text-slate-400 mt-0.5">
+                                <span className="flex items-center gap-1">
+                                  <Clock className="w-3 h-3 text-slate-500" />
+                                  {new Date(doc.createdAt).toLocaleDateString()} at{' '}
+                                  {new Date(doc.createdAt).toLocaleTimeString([], {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </span>
+                                <span>•</span>
+                                <span>{doc.content.length.toLocaleString()} characters</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              className="text-slate-400 hover:text-white p-1 rounded-lg"
+                            >
+                              {isExpanded ? (
+                                <ChevronUp className="w-4 h-4" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4" />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Expanded Content Preview */}
+                        {isExpanded && (
+                          <div className="border-t border-slate-800/80 bg-slate-900/50 p-4">
+                            <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+                              <span className="font-medium text-slate-300">Parsed Content Preview:</span>
+                              <span className="font-mono text-[11px] text-slate-500">ID: {doc.id}</span>
+                            </div>
+                            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300 font-mono max-h-60 overflow-y-auto whitespace-pre-wrap leading-relaxed">
+                              {doc.content}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
             {/* Live API Console / Diagnostic Log */}
-            <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-md">
+            <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 shadow-md">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2 text-sm font-semibold text-slate-300">
                   <Terminal className="w-4 h-4 text-indigo-400" />
                   Live API Activity Console
                 </div>
-                <span className="text-xs text-slate-500">Real-time HTTP responses</span>
+                <span className="text-xs text-slate-500">Real-time HTTP requests & responses</span>
               </div>
-              <div className="bg-slate-950 rounded-xl border border-slate-800/90 p-4 font-mono text-xs max-h-48 overflow-y-auto space-y-2">
+              <div className="bg-slate-950 rounded-xl border border-slate-800/90 p-4 font-mono text-xs max-h-44 overflow-y-auto space-y-2">
                 {logs.length === 0 ? (
                   <p className="text-slate-500 italic">No API events triggered yet</p>
                 ) : (
@@ -393,9 +798,7 @@ export default function HomePage() {
         ) : (
           /* ================= Unauthenticated Auth View ================= */
           <div className="w-full max-w-md my-auto py-8">
-            {/* Auth Card */}
             <div className="rounded-3xl bg-slate-900/90 border border-slate-800 shadow-2xl p-6 sm:p-8 backdrop-blur-xl">
-              {/* Header */}
               <div className="text-center mb-6">
                 <div className="inline-flex w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 items-center justify-center shadow-lg shadow-indigo-500/25 mb-3">
                   <Sparkles className="w-6 h-6 text-white" />
@@ -406,7 +809,7 @@ export default function HomePage() {
                 <p className="text-slate-400 text-xs sm:text-sm mt-1">
                   {authMode === 'register'
                     ? 'Register now to receive 10 complimentary AI credits'
-                    : 'Sign in to access your dashboard and remaining credits'}
+                    : 'Sign in to access your dashboard and uploaded documents'}
                 </p>
               </div>
 
@@ -517,18 +920,16 @@ export default function HomePage() {
                 </button>
               </form>
 
-              {/* Demo Helper */}
               <div className="mt-6 pt-4 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
                 <span>Default Initial Credits:</span>
                 <span className="font-semibold text-amber-400">10 credits</span>
               </div>
             </div>
 
-            {/* Quick API Features Summary */}
             <div className="mt-6 text-center text-xs text-slate-500 space-y-1">
               <div>✓ ZOD Schema Validation • bcryptjs (10 rounds)</div>
               <div>✓ JOSE JWT Token in HTTP-Only Cookie</div>
-              <div>✓ PostgreSQL User Model with Prisma ORM</div>
+              <div>✓ Prisma Document Model • PDF-Parse & TXT extraction</div>
             </div>
           </div>
         )}
@@ -536,7 +937,7 @@ export default function HomePage() {
 
       {/* Footer */}
       <footer className="border-t border-slate-900 py-4 text-center text-xs text-slate-600">
-        AI Productivity Tool • Next.js TypeScript Tailwind Prisma PostgreSQL
+        AI Productivity Tool • Next.js App Router • Prisma PostgreSQL • PDF-Parse
       </footer>
     </div>
   )
