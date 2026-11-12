@@ -69,18 +69,18 @@ interface DocumentItem {
   updatedAt: string
 }
 
-// Minimal Structured Study Summary Viewer
+// Minimal Structured Study Summary Viewer (Dark Mode)
 function MarkdownSummaryViewer({ content }: { content: string }) {
   const lines = content.split('\n')
   return (
-    <div className="space-y-4 font-sans text-xs sm:text-sm text-zinc-700 leading-relaxed">
+    <div className="space-y-4 font-sans text-xs sm:text-sm text-zinc-300 leading-relaxed">
       {lines.map((line, idx) => {
         const trimmed = line.trim()
         if (trimmed.startsWith('## Executive Overview')) {
           return (
-            <div key={idx} className="pt-2 pb-1.5 border-b border-zinc-200">
-              <span className="text-xs font-semibold uppercase tracking-wider text-zinc-900 flex items-center gap-1.5">
-                <BookOpen className="w-3.5 h-3.5 text-zinc-700" />
+            <div key={idx} className="pt-2 pb-1.5 border-b border-zinc-800">
+              <span className="text-xs font-semibold uppercase tracking-wider text-zinc-100 flex items-center gap-1.5">
+                <BookOpen className="w-3.5 h-3.5 text-zinc-400" />
                 Executive Overview
               </span>
             </div>
@@ -88,9 +88,9 @@ function MarkdownSummaryViewer({ content }: { content: string }) {
         }
         if (trimmed.startsWith('## Key Concepts')) {
           return (
-            <div key={idx} className="pt-3 pb-1.5 border-b border-zinc-200">
-              <span className="text-xs font-semibold uppercase tracking-wider text-zinc-900 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-zinc-700" />
+            <div key={idx} className="pt-3 pb-1.5 border-b border-zinc-800">
+              <span className="text-xs font-semibold uppercase tracking-wider text-zinc-100 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-zinc-400" />
                 Key Concepts
               </span>
             </div>
@@ -98,9 +98,9 @@ function MarkdownSummaryViewer({ content }: { content: string }) {
         }
         if (trimmed.startsWith('## Actionable Takeaways')) {
           return (
-            <div key={idx} className="pt-3 pb-1.5 border-b border-zinc-200">
-              <span className="text-xs font-semibold uppercase tracking-wider text-zinc-900 flex items-center gap-1.5">
-                <Zap className="w-3.5 h-3.5 text-zinc-700" />
+            <div key={idx} className="pt-3 pb-1.5 border-b border-zinc-800">
+              <span className="text-xs font-semibold uppercase tracking-wider text-zinc-100 flex items-center gap-1.5">
+                <Zap className="w-3.5 h-3.5 text-zinc-400" />
                 Actionable Takeaways
               </span>
             </div>
@@ -108,15 +108,15 @@ function MarkdownSummaryViewer({ content }: { content: string }) {
         }
         if (trimmed.startsWith('## ')) {
           return (
-            <h4 key={idx} className="text-xs font-semibold uppercase tracking-wider text-zinc-900 pt-2">
+            <h4 key={idx} className="text-xs font-semibold uppercase tracking-wider text-zinc-100 pt-2">
               {trimmed.substring(3)}
             </h4>
           )
         }
         if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
           return (
-            <div key={idx} className="flex items-start gap-2 pl-1.5 text-zinc-700">
-              <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 mt-2 shrink-0" />
+            <div key={idx} className="flex items-start gap-2 pl-1.5 text-zinc-300">
+              <span className="w-1.5 h-1.5 rounded-full bg-zinc-600 mt-2 shrink-0" />
               <span>{trimmed.substring(2)}</span>
             </div>
           )
@@ -125,7 +125,7 @@ function MarkdownSummaryViewer({ content }: { content: string }) {
           return <div key={idx} className="h-0.5" />
         }
         return (
-          <p key={idx} className="text-zinc-700">
+          <p key={idx} className="text-zinc-300">
             {trimmed}
           </p>
         )
@@ -134,7 +134,7 @@ function MarkdownSummaryViewer({ content }: { content: string }) {
   )
 }
 
-// Flat, Clean Flashcard Deck Viewer
+// Flat, Clean Flashcard Deck Viewer (Dark Mode)
 function FlashcardDeckViewer({ flashcards }: { flashcards: Flashcard[] }) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isFlipped, setIsFlipped] = useState(false)
@@ -166,32 +166,32 @@ function FlashcardDeckViewer({ flashcards }: { flashcards: Flashcard[] }) {
   return (
     <div className="space-y-3 max-w-2xl mx-auto">
       {/* Header controls & counter */}
-      <div className="flex items-center justify-between text-xs text-zinc-500 px-0.5">
-        <span className="font-mono text-xs font-medium text-zinc-700">
+      <div className="flex items-center justify-between text-xs text-zinc-400 px-0.5">
+        <span className="font-mono text-xs font-medium text-zinc-300">
           Card {currentIndex + 1} / {flashcards.length}
         </span>
-        <span className="text-zinc-400 flex items-center gap-1 font-mono text-[11px]">
+        <span className="text-zinc-500 flex items-center gap-1 font-mono text-[11px]">
           <RotateCw className="w-3 h-3" />
           Click card to flip
         </span>
       </div>
 
-      {/* Flat Notion/Linear styled Flashcard */}
+      {/* Flat Notion/Linear styled Flashcard (Dark Mode) */}
       <div
         onClick={() => setIsFlipped(!isFlipped)}
-        className="cursor-pointer select-none relative min-h-[220px] rounded-lg p-6 sm:p-7 flex flex-col justify-between transition-all bg-white border border-zinc-200 hover:border-zinc-300 shadow-xs"
+        className="cursor-pointer select-none relative min-h-[220px] rounded-lg p-6 sm:p-7 flex flex-col justify-between transition-all bg-zinc-900 border border-zinc-800 hover:border-zinc-700 shadow-xs"
       >
         <div className="flex items-center justify-between">
           <span
             className={`font-mono text-[10px] tracking-wider uppercase px-2 py-0.5 rounded border ${
               isFlipped
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                : 'bg-zinc-100 text-zinc-700 border-zinc-200'
+                ? 'bg-emerald-950/50 text-emerald-300 border-emerald-800/60'
+                : 'bg-zinc-800 text-zinc-300 border-zinc-700/60'
             }`}
           >
             {isFlipped ? 'Answer / Explanation' : 'Prompt / Concept'}
           </span>
-          <span className="text-xs text-zinc-400 font-mono">
+          <span className="text-xs text-zinc-500 font-mono">
             #{currentIndex + 1}
           </span>
         </div>
@@ -199,15 +199,15 @@ function FlashcardDeckViewer({ flashcards }: { flashcards: Flashcard[] }) {
         <div className="my-auto py-5 text-center">
           <p
             className={`text-base sm:text-lg leading-relaxed transition-all ${
-              isFlipped ? 'text-zinc-800 font-normal' : 'text-zinc-900 font-medium'
+              isFlipped ? 'text-zinc-200 font-normal' : 'text-zinc-100 font-medium'
             }`}
           >
             {isFlipped ? currentCard.back : currentCard.front}
           </p>
         </div>
 
-        <div className="text-center font-mono text-[11px] text-zinc-400">
-          {isFlipped ? 'Click to show prompt' : 'Click to reveal answer'}
+        <div className="text-center font-mono text-[11px] text-zinc-500">
+          {isFlipped ? 'Click to show prompt' : 'Click anywhere on card to reveal answer'}
         </div>
       </div>
 
@@ -216,7 +216,7 @@ function FlashcardDeckViewer({ flashcards }: { flashcards: Flashcard[] }) {
         <button
           onClick={handlePrev}
           disabled={currentIndex === 0}
-          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-white hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium text-zinc-700 border border-zinc-200 transition shadow-xs"
+          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium text-zinc-200 border border-zinc-800 transition shadow-xs"
         >
           <ChevronLeft className="w-3.5 h-3.5" />
           Previous
@@ -233,8 +233,8 @@ function FlashcardDeckViewer({ flashcards }: { flashcards: Flashcard[] }) {
               }}
               className={`h-1.5 rounded-full transition-all ${
                 idx === currentIndex
-                  ? 'w-4 bg-zinc-900'
-                  : 'w-1.5 bg-zinc-200 hover:bg-zinc-300'
+                  ? 'w-4 bg-zinc-100'
+                  : 'w-1.5 bg-zinc-800 hover:bg-zinc-700'
               }`}
               title={`Card ${idx + 1}`}
             />
@@ -244,7 +244,7 @@ function FlashcardDeckViewer({ flashcards }: { flashcards: Flashcard[] }) {
         <button
           onClick={handleNext}
           disabled={currentIndex === flashcards.length - 1}
-          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-white hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium text-zinc-700 border border-zinc-200 transition shadow-xs"
+          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium text-zinc-200 border border-zinc-800 transition shadow-xs"
         >
           Next
           <ChevronRight className="w-3.5 h-3.5" />
@@ -254,7 +254,7 @@ function FlashcardDeckViewer({ flashcards }: { flashcards: Flashcard[] }) {
   )
 }
 
-// Flat, Clean Multiple-Choice Quiz with Instant Feedback
+// Flat, Clean Multiple-Choice Quiz (Dark Mode)
 function InteractiveQuizViewer({ questions }: { questions: QuizQuestion[] }) {
   const [selectedAnswers, setSelectedAnswers] = useState<{ [qIndex: number]: number }>({})
 
@@ -285,12 +285,12 @@ function InteractiveQuizViewer({ questions }: { questions: QuizQuestion[] }) {
   return (
     <div className="space-y-4 max-w-3xl mx-auto">
       {/* Quiz Header & Score Bar */}
-      <div className="flex items-center justify-between p-3.5 rounded-lg bg-white border border-zinc-200 text-xs shadow-xs">
+      <div className="flex items-center justify-between p-3.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs shadow-xs">
         <div>
-          <span className="font-semibold text-zinc-900 text-xs block">
+          <span className="font-semibold text-zinc-100 text-xs block">
             Comprehension Challenge
           </span>
-          <span className="text-zinc-500 font-mono text-[11px]">
+          <span className="text-zinc-400 font-mono text-[11px]">
             {questions.length} questions available
           </span>
         </div>
@@ -298,7 +298,7 @@ function InteractiveQuizViewer({ questions }: { questions: QuizQuestion[] }) {
         <div className="flex items-center gap-3">
           <div className="text-right">
             <span className="text-zinc-500 font-mono text-[10px] block uppercase">Score</span>
-            <span className="font-mono text-xs font-semibold text-zinc-900">
+            <span className="font-mono text-xs font-semibold text-zinc-100">
               {correctCount} / {questions.length} ({Math.round((correctCount / questions.length) * 100)}%)
             </span>
           </div>
@@ -306,7 +306,7 @@ function InteractiveQuizViewer({ questions }: { questions: QuizQuestion[] }) {
           {answeredCount > 0 && (
             <button
               onClick={handleResetQuiz}
-              className="px-2.5 py-1 rounded-md bg-white hover:bg-zinc-50 text-zinc-700 font-mono text-[11px] font-medium border border-zinc-200 transition shadow-xs"
+              className="px-2.5 py-1 rounded-md bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-mono text-[11px] font-medium border border-zinc-800 transition shadow-xs"
             >
               Reset
             </button>
@@ -324,13 +324,13 @@ function InteractiveQuizViewer({ questions }: { questions: QuizQuestion[] }) {
           return (
             <div
               key={q.id || qIndex}
-              className="p-4 sm:p-5 rounded-lg bg-white border border-zinc-200 space-y-3 shadow-xs"
+              className="p-4 sm:p-5 rounded-lg bg-zinc-900 border border-zinc-800 space-y-3 shadow-xs"
             >
               <div className="flex items-start gap-2.5">
-                <span className="w-5 h-5 rounded bg-zinc-100 text-zinc-700 font-mono text-xs font-semibold flex items-center justify-center shrink-0 mt-0.5">
+                <span className="w-5 h-5 rounded bg-zinc-800 text-zinc-300 font-mono text-xs font-semibold flex items-center justify-center shrink-0 mt-0.5">
                   {qIndex + 1}
                 </span>
-                <h4 className="text-xs sm:text-sm font-semibold text-zinc-900 leading-snug">
+                <h4 className="text-xs sm:text-sm font-semibold text-zinc-100 leading-snug">
                   {q.question}
                 </h4>
               </div>
@@ -338,17 +338,17 @@ function InteractiveQuizViewer({ questions }: { questions: QuizQuestion[] }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
                 {q.options.map((opt, optIndex) => {
                   let optStyle =
-                    'border-zinc-200 bg-zinc-50/60 hover:bg-zinc-100/80 text-zinc-800'
+                    'border-zinc-800 bg-zinc-950/60 hover:bg-zinc-800/70 text-zinc-200'
 
                   if (isAnswered) {
                     if (optIndex === q.correctIndex) {
                       optStyle =
-                        'border-emerald-500 bg-emerald-50/80 text-emerald-900 font-medium'
+                        'border-emerald-600 bg-emerald-950/40 text-emerald-200 font-medium'
                     } else if (optIndex === selectedOption) {
                       optStyle =
-                        'border-rose-400 bg-rose-50/80 text-rose-900 font-medium'
+                        'border-rose-700 bg-rose-950/40 text-rose-200 font-medium'
                     } else {
-                      optStyle = 'border-zinc-200 bg-zinc-50/30 opacity-50 text-zinc-400'
+                      optStyle = 'border-zinc-800/60 bg-zinc-950/30 opacity-40 text-zinc-500'
                     }
                   }
 
@@ -359,19 +359,19 @@ function InteractiveQuizViewer({ questions }: { questions: QuizQuestion[] }) {
                       className={`text-left p-2.5 rounded-md border text-xs transition flex items-center justify-between gap-2 ${optStyle}`}
                     >
                       <div className="flex items-center gap-2">
-                        <span className="w-4 h-4 rounded bg-zinc-200/70 flex items-center justify-center font-mono text-[10px] font-bold text-zinc-600 shrink-0">
+                        <span className="w-4 h-4 rounded bg-zinc-800 flex items-center justify-center font-mono text-[10px] font-bold text-zinc-400 shrink-0">
                           {String.fromCharCode(65 + optIndex)}
                         </span>
                         <span>{opt}</span>
                       </div>
 
                       {isAnswered && optIndex === q.correctIndex && (
-                        <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                       )}
                       {isAnswered &&
                         optIndex === selectedOption &&
                         optIndex !== q.correctIndex && (
-                          <X className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                          <X className="w-3.5 h-3.5 text-rose-400 shrink-0" />
                         )}
                     </button>
                   )
@@ -382,26 +382,26 @@ function InteractiveQuizViewer({ questions }: { questions: QuizQuestion[] }) {
                 <div
                   className={`p-3 rounded-md border text-xs leading-relaxed transition ${
                     isCorrect
-                      ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900'
-                      : 'bg-amber-50/70 border-amber-200 text-amber-900'
+                      ? 'bg-emerald-950/40 border-emerald-800/60 text-emerald-200'
+                      : 'bg-amber-950/40 border-amber-800/60 text-amber-200'
                   }`}
                 >
                   <div className="flex items-center gap-1.5 font-semibold mb-1">
                     {isCorrect ? (
                       <>
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                         <span>Correct Answer</span>
                       </>
                     ) : (
                       <>
-                        <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                        <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
                         <span>
                           Incorrect — Correct: Option {String.fromCharCode(65 + q.correctIndex)}
                         </span>
                       </>
                     )}
                   </div>
-                  <p className="text-zinc-700 text-[11px] sm:text-xs">
+                  <p className="text-zinc-300 text-[11px] sm:text-xs">
                     {q.explanation}
                   </p>
                 </div>
@@ -412,15 +412,15 @@ function InteractiveQuizViewer({ questions }: { questions: QuizQuestion[] }) {
       </div>
 
       {answeredCount === questions.length && (
-        <div className="p-4 rounded-lg bg-white border border-zinc-200 text-center space-y-2 shadow-xs">
-          <Award className="w-6 h-6 text-zinc-700 mx-auto" />
-          <h4 className="text-xs sm:text-sm font-semibold text-zinc-900">Quiz Completed</h4>
-          <p className="font-mono text-xs text-zinc-500">
+        <div className="p-4 rounded-lg bg-zinc-900 border border-zinc-800 text-center space-y-2 shadow-xs">
+          <Award className="w-6 h-6 text-zinc-300 mx-auto" />
+          <h4 className="text-xs sm:text-sm font-semibold text-zinc-100">Quiz Completed</h4>
+          <p className="font-mono text-xs text-zinc-400">
             Score: {correctCount} / {questions.length} correct ({Math.round((correctCount / questions.length) * 100)}%)
           </p>
           <button
             onClick={handleResetQuiz}
-            className="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-medium transition shadow-xs"
+            className="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-medium transition shadow-xs"
           >
             <RotateCw className="w-3.5 h-3.5" />
             Retake Quiz
@@ -835,19 +835,19 @@ export default function HomePage() {
   const activeDoc = documents.find((d) => d.id === selectedDocId)
 
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900 flex flex-col font-sans selection:bg-zinc-900 selection:text-white">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-sans selection:bg-zinc-800 selection:text-zinc-100">
       {/* Top Application Header */}
-      <header className="border-b border-zinc-200 bg-white/90 backdrop-blur-md sticky top-0 z-50">
+      <header className="border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-md bg-zinc-900 text-white flex items-center justify-center shadow-xs">
-              <Sparkles className="w-4 h-4 text-zinc-100" />
+            <div className="w-7 h-7 rounded-md bg-zinc-100 text-zinc-950 flex items-center justify-center shadow-xs">
+              <Sparkles className="w-4 h-4" />
             </div>
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-sm tracking-tight text-zinc-900">
+              <span className="font-semibold text-sm tracking-tight text-zinc-100">
                 StudyMind
               </span>
-              <span className="px-1.5 py-0.5 font-mono text-[10px] font-medium rounded border border-zinc-200 bg-zinc-100 text-zinc-600 hidden sm:inline-block">
+              <span className="px-1.5 py-0.5 font-mono text-[10px] font-medium rounded border border-zinc-800 bg-zinc-900 text-zinc-400 hidden sm:inline-block">
                 workspace
               </span>
             </div>
@@ -856,20 +856,20 @@ export default function HomePage() {
           {currentUser ? (
             <div className="flex items-center gap-3">
               {/* Credit Balance Badge */}
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-100 border border-zinc-200 text-zinc-800 text-xs font-mono shadow-xs">
-                <Coins className="w-3.5 h-3.5 text-zinc-600" />
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs font-mono shadow-xs">
+                <Coins className="w-3.5 h-3.5 text-zinc-400" />
                 <span>{currentUser.credits} credits</span>
               </div>
 
               {/* User Email & Logout */}
               <div className="flex items-center gap-2">
-                <span className="text-xs font-mono text-zinc-500 hidden md:inline-block max-w-[180px] truncate">
+                <span className="text-xs font-mono text-zinc-400 hidden md:inline-block max-w-[180px] truncate">
                   {currentUser.email}
                 </span>
                 <button
                   onClick={handleLogout}
                   disabled={formLoading}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white hover:bg-zinc-100 text-zinc-700 text-xs font-medium border border-zinc-200 transition shadow-xs"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-medium border border-zinc-800 transition shadow-xs"
                   title="Sign Out"
                 >
                   <LogOut className="w-3.5 h-3.5 text-zinc-500" />
@@ -878,13 +878,13 @@ export default function HomePage() {
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-3 text-xs text-zinc-500 font-mono">
+            <div className="flex items-center gap-3 text-xs text-zinc-400 font-mono">
               <span className="flex items-center gap-1">
-                <Database className="w-3.5 h-3.5 text-zinc-600" />
+                <Database className="w-3.5 h-3.5 text-zinc-500" />
                 PostgreSQL
               </span>
               <span className="flex items-center gap-1">
-                <ShieldCheck className="w-3.5 h-3.5 text-zinc-600" />
+                <ShieldCheck className="w-3.5 h-3.5 text-zinc-500" />
                 JWT Auth
               </span>
             </div>
@@ -901,9 +901,9 @@ export default function HomePage() {
           </div>
         ) : currentUser ? (
           /* ================= Authenticated Split-Panel Study Workspace ================= */
-          <div className="flex-1 flex flex-col md:flex-row max-w-7xl w-full mx-auto border-x border-zinc-200 bg-white">
+          <div className="flex-1 flex flex-col md:flex-row max-w-7xl w-full mx-auto border-x border-zinc-800/80 bg-zinc-950">
             {/* Left Sidebar: Document Management & Upload Drawer */}
-            <aside className="w-full md:w-80 lg:w-88 shrink-0 border-b md:border-b-0 md:border-r border-zinc-200 bg-zinc-50/60 p-4 flex flex-col space-y-3.5">
+            <aside className="w-full md:w-80 lg:w-88 shrink-0 border-b md:border-b-0 md:border-r border-zinc-800 bg-zinc-950 p-4 flex flex-col space-y-3.5">
               {/* New Document Button */}
               <button
                 onClick={() => {
@@ -911,7 +911,7 @@ export default function HomePage() {
                   setDocError(null)
                   setDocSuccess(null)
                 }}
-                className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-medium transition shadow-xs"
+                className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-medium transition shadow-xs"
               >
                 <Plus className="w-3.5 h-3.5" />
                 {showUploadDrawer ? 'Close Form' : 'Add Document'}
@@ -919,18 +919,18 @@ export default function HomePage() {
 
               {/* Upload / Paste Document Drawer */}
               {showUploadDrawer && (
-                <div className="p-3.5 rounded-lg bg-white border border-zinc-200 space-y-3 shadow-xs transition-all">
+                <div className="p-3.5 rounded-lg bg-zinc-900 border border-zinc-800 space-y-3 shadow-xs transition-all">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-zinc-900 flex items-center gap-1.5">
-                      <FileUp className="w-3.5 h-3.5 text-zinc-700" />
+                    <span className="text-xs font-semibold text-zinc-100 flex items-center gap-1.5">
+                      <FileUp className="w-3.5 h-3.5 text-zinc-400" />
                       Add Study Material
                     </span>
-                    <div className="flex p-0.5 bg-zinc-100 rounded-md border border-zinc-200 text-[10px]">
+                    <div className="flex p-0.5 bg-zinc-950 rounded-md border border-zinc-800 text-[10px]">
                       <button
                         type="button"
                         onClick={() => setInputMode('upload')}
                         className={`px-2 py-0.5 rounded font-medium transition ${
-                          inputMode === 'upload' ? 'bg-white text-zinc-900 shadow-xs' : 'text-zinc-500'
+                          inputMode === 'upload' ? 'bg-zinc-800 text-zinc-100 shadow-xs' : 'text-zinc-400'
                         }`}
                       >
                         File
@@ -939,7 +939,7 @@ export default function HomePage() {
                         type="button"
                         onClick={() => setInputMode('paste')}
                         className={`px-2 py-0.5 rounded font-medium transition ${
-                          inputMode === 'paste' ? 'bg-white text-zinc-900 shadow-xs' : 'text-zinc-500'
+                          inputMode === 'paste' ? 'bg-zinc-800 text-zinc-100 shadow-xs' : 'text-zinc-400'
                         }`}
                       >
                         Paste
@@ -948,7 +948,7 @@ export default function HomePage() {
                   </div>
 
                   {docError && (
-                    <div className="p-2.5 rounded-md bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-1.5">
+                    <div className="p-2.5 rounded-md bg-rose-950/40 border border-rose-900/60 text-rose-300 text-xs flex items-center gap-1.5">
                       <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                       <span>{docError}</span>
                     </div>
@@ -960,7 +960,7 @@ export default function HomePage() {
                       value={docTitle}
                       onChange={(e) => setDocTitle(e.target.value)}
                       placeholder="Title (optional)"
-                      className="w-full bg-white border border-zinc-300 rounded-md px-2.5 py-1.5 text-xs text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-md px-2.5 py-1.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600"
                     />
 
                     {inputMode === 'upload' ? (
@@ -981,10 +981,10 @@ export default function HomePage() {
                         />
                         <label
                           htmlFor="sidebar-file-upload"
-                          className="cursor-pointer border border-dashed border-zinc-300 hover:border-zinc-400 rounded-md p-3.5 text-center block bg-zinc-50 transition"
+                          className="cursor-pointer border border-dashed border-zinc-700 hover:border-zinc-600 rounded-md p-3.5 text-center block bg-zinc-950/60 transition"
                         >
-                          <UploadCloud className="w-4 h-4 text-zinc-600 mx-auto mb-1" />
-                          <span className="text-xs text-zinc-800 font-medium block truncate">
+                          <UploadCloud className="w-4 h-4 text-zinc-400 mx-auto mb-1" />
+                          <span className="text-xs text-zinc-200 font-medium block truncate">
                             {selectedFile ? selectedFile.name : 'Choose PDF or TXT'}
                           </span>
                         </label>
@@ -995,7 +995,7 @@ export default function HomePage() {
                         value={docContent}
                         onChange={(e) => setDocContent(e.target.value)}
                         placeholder="Paste study notes, lecture content, or articles..."
-                        className="w-full bg-white border border-zinc-300 rounded-md p-2.5 text-xs text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 font-mono leading-relaxed"
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-md p-2.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 font-mono leading-relaxed"
                       />
                     )}
 
@@ -1007,7 +1007,7 @@ export default function HomePage() {
                         (inputMode === 'upload' && !selectedFile) ||
                         (inputMode === 'paste' && !docContent.trim())
                       }
-                      className="w-full py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 disabled:opacity-40 text-white text-xs font-medium transition shadow-xs"
+                      className="w-full py-1.5 rounded-md bg-zinc-100 hover:bg-white disabled:opacity-40 text-zinc-950 text-xs font-medium transition shadow-xs"
                     >
                       {docSubmitting ? 'Parsing...' : 'Upload & Parse (-1 Credit)'}
                     </button>
@@ -1017,14 +1017,14 @@ export default function HomePage() {
 
               {/* Document List Header & Search */}
               <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs text-zinc-500 px-0.5">
-                  <span className="font-mono text-xs font-medium text-zinc-700">
+                <div className="flex items-center justify-between text-xs text-zinc-400 px-0.5">
+                  <span className="font-mono text-xs font-medium text-zinc-300">
                     Documents ({documents.length})
                   </span>
                   <button
                     onClick={fetchDocuments}
                     disabled={isLoadingDocs}
-                    className="hover:text-zinc-900 transition"
+                    className="hover:text-zinc-100 text-zinc-400 transition"
                     title="Refresh list"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${isLoadingDocs ? 'animate-spin' : ''}`} />
@@ -1032,13 +1032,13 @@ export default function HomePage() {
                 </div>
 
                 <div className="relative">
-                  <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-2.5 top-2" />
+                  <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-2" />
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Filter documents..."
-                    className="w-full bg-white border border-zinc-200 rounded-md pl-8 pr-2.5 py-1 text-xs text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-400 transition"
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-md pl-8 pr-2.5 py-1 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 transition"
                   />
                 </div>
               </div>
@@ -1051,8 +1051,8 @@ export default function HomePage() {
                     Loading documents...
                   </div>
                 ) : filteredDocuments.length === 0 ? (
-                  <div className="py-10 text-center text-zinc-500 font-mono text-xs rounded-lg border border-dashed border-zinc-200 p-4 bg-white">
-                    <File className="w-5 h-5 mx-auto mb-1 text-zinc-400" />
+                  <div className="py-10 text-center text-zinc-500 font-mono text-xs rounded-lg border border-dashed border-zinc-800 p-4 bg-zinc-900/40">
+                    <File className="w-5 h-5 mx-auto mb-1 text-zinc-600" />
                     {documents.length === 0 ? 'No documents uploaded yet.' : 'No matching documents found.'}
                   </div>
                 ) : (
@@ -1069,8 +1069,8 @@ export default function HomePage() {
                         key={doc.id}
                         className={`group relative rounded-md border p-2.5 transition cursor-pointer ${
                           isSelected
-                            ? 'bg-zinc-100/90 border-zinc-400/80 shadow-xs ring-1 ring-zinc-300'
-                            : 'bg-white border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50/80'
+                            ? 'bg-zinc-900 border-zinc-600 shadow-xs ring-1 ring-zinc-700/60'
+                            : 'bg-zinc-900/60 border-zinc-800/80 hover:border-zinc-700 hover:bg-zinc-900'
                         }`}
                         onClick={() => {
                           if (!isEditingThis) {
@@ -1089,19 +1089,19 @@ export default function HomePage() {
                               value={editingTitle}
                               onChange={(e) => setEditingTitle(e.target.value)}
                               autoFocus
-                              className="w-full bg-white border border-zinc-900 rounded px-2 py-1 text-xs text-zinc-900 focus:outline-none"
+                              className="w-full bg-zinc-950 border border-zinc-600 rounded px-2 py-1 text-xs text-zinc-100 focus:outline-none"
                             />
                             <div className="flex items-center justify-end gap-1.5">
                               <button
                                 onClick={() => handleRenameDocument(doc.id)}
                                 disabled={isRenaming}
-                                className="px-2 py-0.5 rounded bg-zinc-900 hover:bg-zinc-800 text-white font-mono text-[11px] font-medium"
+                                className="px-2 py-0.5 rounded bg-zinc-100 hover:bg-white text-zinc-950 font-mono text-[11px] font-medium"
                               >
                                 Save
                               </button>
                               <button
                                 onClick={() => setEditingDocId(null)}
-                                className="px-2 py-0.5 rounded bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-mono text-[11px]"
+                                className="px-2 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-mono text-[11px]"
                               >
                                 Cancel
                               </button>
@@ -1113,7 +1113,7 @@ export default function HomePage() {
                             className="p-1 space-y-2"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <span className="text-[11px] font-medium text-rose-700 block">
+                            <span className="text-[11px] font-medium text-rose-300 block">
                               Delete document & study materials?
                             </span>
                             <div className="flex items-center gap-1.5">
@@ -1126,7 +1126,7 @@ export default function HomePage() {
                               </button>
                               <button
                                 onClick={() => setDeletingDocId(null)}
-                                className="px-2 py-0.5 rounded bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-mono text-[11px]"
+                                className="px-2 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-mono text-[11px]"
                               >
                                 Cancel
                               </button>
@@ -1137,14 +1137,14 @@ export default function HomePage() {
                           <div>
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0 flex-1">
-                                <h4 className="text-xs font-medium text-zinc-900 truncate leading-snug">
+                                <h4 className="text-xs font-medium text-zinc-100 truncate leading-snug">
                                   {doc.title}
                                 </h4>
-                                <div className="flex items-center gap-2 text-[10px] text-zinc-500 mt-1">
-                                  <span className="px-1.5 py-0.2 rounded font-mono font-bold uppercase bg-zinc-100 text-zinc-700 border border-zinc-200">
+                                <div className="flex items-center gap-2 text-[10px] text-zinc-400 mt-1">
+                                  <span className="px-1.5 py-0.2 rounded font-mono font-bold uppercase bg-zinc-800 text-zinc-300 border border-zinc-700/60">
                                     {doc.fileType}
                                   </span>
-                                  <span className="font-mono text-zinc-400">
+                                  <span className="font-mono text-zinc-500">
                                     {new Date(doc.createdAt).toLocaleDateString()}
                                   </span>
                                 </div>
@@ -1160,14 +1160,14 @@ export default function HomePage() {
                                     setEditingDocId(doc.id)
                                     setEditingTitle(doc.title)
                                   }}
-                                  className="p-1 rounded text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 transition"
+                                  className="p-1 rounded text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition"
                                   title="Rename document"
                                 >
                                   <Edit2 className="w-3 h-3" />
                                 </button>
                                 <button
                                   onClick={() => setDeletingDocId(doc.id)}
-                                  className="p-1 rounded text-zinc-400 hover:text-rose-600 hover:bg-rose-50 transition"
+                                  className="p-1 rounded text-zinc-500 hover:text-rose-400 hover:bg-rose-950/40 transition"
                                   title="Delete document"
                                 >
                                   <Trash2 className="w-3 h-3" />
@@ -1178,20 +1178,20 @@ export default function HomePage() {
                             {/* Deck Indicators */}
                             <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                               {hasSummary && (
-                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-mono text-[10px] font-medium bg-zinc-100 text-zinc-700 border border-zinc-200">
-                                  <BookOpen className="w-2.5 h-2.5 text-zinc-600" />
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-mono text-[10px] font-medium bg-zinc-800/80 text-zinc-300 border border-zinc-700/60">
+                                  <BookOpen className="w-2.5 h-2.5 text-zinc-400" />
                                   Summary
                                 </span>
                               )}
                               {hasFlashcards && (
-                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-mono text-[10px] font-medium bg-zinc-100 text-zinc-700 border border-zinc-200">
-                                  <Layers className="w-2.5 h-2.5 text-zinc-600" />
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-mono text-[10px] font-medium bg-zinc-800/80 text-zinc-300 border border-zinc-700/60">
+                                  <Layers className="w-2.5 h-2.5 text-zinc-400" />
                                   {doc.flashcards?.length} Cards
                                 </span>
                               )}
                               {hasQuiz && (
-                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-mono text-[10px] font-medium bg-zinc-100 text-zinc-700 border border-zinc-200">
-                                  <HelpCircle className="w-2.5 h-2.5 text-zinc-600" />
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-mono text-[10px] font-medium bg-zinc-800/80 text-zinc-300 border border-zinc-700/60">
+                                  <HelpCircle className="w-2.5 h-2.5 text-zinc-400" />
                                   Quiz
                                 </span>
                               )}
@@ -1206,27 +1206,27 @@ export default function HomePage() {
             </aside>
 
             {/* Right Main Panel: Active Document Study Workspace */}
-            <main className="flex-1 flex flex-col p-4 sm:p-6 bg-zinc-50/40 overflow-y-auto">
+            <main className="flex-1 flex flex-col p-4 sm:p-6 bg-zinc-950 overflow-y-auto">
               {activeDoc ? (
                 <div className="space-y-4">
                   {/* Active Document Header Card */}
-                  <div className="rounded-lg bg-white border border-zinc-200 p-4 sm:p-5 shadow-xs">
+                  <div className="rounded-lg bg-zinc-900 border border-zinc-800 p-4 sm:p-5 shadow-xs">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div>
                         <div className="flex items-center gap-2 mb-1.5">
-                          <span className="px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase rounded bg-zinc-100 text-zinc-700 border border-zinc-200">
+                          <span className="px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase rounded bg-zinc-800 text-zinc-300 border border-zinc-700/60">
                             {activeDoc.fileType}
                           </span>
                           <span className="text-xs text-zinc-400 font-mono flex items-center gap-1">
                             <Clock className="w-3 h-3" />
                             {new Date(activeDoc.createdAt).toLocaleDateString()}
                           </span>
-                          <span className="text-xs text-zinc-300">•</span>
-                          <span className="text-xs text-zinc-500 font-mono">
+                          <span className="text-xs text-zinc-600">•</span>
+                          <span className="text-xs text-zinc-400 font-mono">
                             {activeDoc.content.length.toLocaleString()} chars
                           </span>
                         </div>
-                        <h2 className="text-lg sm:text-xl font-semibold text-zinc-900 tracking-tight">
+                        <h2 className="text-lg sm:text-xl font-semibold text-zinc-100 tracking-tight">
                           {activeDoc.title}
                         </h2>
                       </div>
@@ -1243,8 +1243,8 @@ export default function HomePage() {
                           }
                           className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition shadow-xs ${
                             activeDoc.summary
-                              ? 'bg-white hover:bg-zinc-50 text-zinc-800 border border-zinc-200'
-                              : 'bg-zinc-900 hover:bg-zinc-800 text-white'
+                              ? 'bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700'
+                              : 'bg-zinc-100 hover:bg-white text-zinc-950'
                           } disabled:opacity-40 disabled:cursor-not-allowed`}
                         >
                           {generatingSummaryDocId === activeDoc.id ? (
@@ -1254,7 +1254,7 @@ export default function HomePage() {
                             </>
                           ) : (
                             <>
-                              <BookOpen className="w-3.5 h-3.5 text-zinc-400" />
+                              <BookOpen className="w-3.5 h-3.5 text-zinc-500" />
                               {activeDoc.summary ? 'Re-Summary (-1)' : 'Summary (-1)'}
                             </>
                           )}
@@ -1270,8 +1270,8 @@ export default function HomePage() {
                           }
                           className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition shadow-xs ${
                             (activeDoc.flashcards?.length || 0) > 0
-                              ? 'bg-white hover:bg-zinc-50 text-zinc-800 border border-zinc-200'
-                              : 'bg-zinc-900 hover:bg-zinc-800 text-white'
+                              ? 'bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700'
+                              : 'bg-zinc-100 hover:bg-white text-zinc-950'
                           } disabled:opacity-40 disabled:cursor-not-allowed`}
                         >
                           {generatingStudyMaterialsDocId === activeDoc.id ? (
@@ -1281,7 +1281,7 @@ export default function HomePage() {
                             </>
                           ) : (
                             <>
-                              <Sparkles className="w-3.5 h-3.5 text-zinc-400" />
+                              <Sparkles className="w-3.5 h-3.5 text-zinc-500" />
                               {(activeDoc.flashcards?.length || 0) > 0
                                 ? 'Regenerate Deck (-1)'
                                 : 'Flashcards & Quiz (-1)'}
@@ -1294,13 +1294,13 @@ export default function HomePage() {
 
                   {/* Error Alerts */}
                   {summaryErrors[activeDoc.id] && (
-                    <div className="p-3 rounded-md bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+                    <div className="p-3 rounded-md bg-rose-950/40 border border-rose-900/60 text-rose-300 text-xs flex items-center gap-2">
                       <AlertCircle className="w-4 h-4 shrink-0" />
                       <span>{summaryErrors[activeDoc.id]}</span>
                     </div>
                   )}
                   {studyMaterialsErrors[activeDoc.id] && (
-                    <div className="p-3 rounded-md bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+                    <div className="p-3 rounded-md bg-rose-950/40 border border-rose-900/60 text-rose-300 text-xs flex items-center gap-2">
                       <AlertCircle className="w-4 h-4 shrink-0" />
                       <span>{studyMaterialsErrors[activeDoc.id]}</span>
                     </div>
@@ -1309,19 +1309,19 @@ export default function HomePage() {
                   {/* Interactive Study Workspace Tabs */}
                   <div className="space-y-3">
                     {/* Minimal Tab Navigation */}
-                    <div className="flex items-center gap-1 border-b border-zinc-200 pb-2 overflow-x-auto">
+                    <div className="flex items-center gap-1 border-b border-zinc-800 pb-2 overflow-x-auto">
                       <button
                         onClick={() => setActiveTab('summary')}
                         className={`px-3 py-1.5 rounded-md text-xs font-medium transition flex items-center gap-1.5 shrink-0 ${
                           activeTab === 'summary'
-                            ? 'bg-zinc-900 text-white shadow-xs'
-                            : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100'
+                            ? 'bg-zinc-100 text-zinc-950 shadow-xs'
+                            : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
                         }`}
                       >
                         <BookOpen className="w-3.5 h-3.5" />
                         Study Summary
                         {activeDoc.summary && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                         )}
                       </button>
 
@@ -1329,8 +1329,8 @@ export default function HomePage() {
                         onClick={() => setActiveTab('flashcards')}
                         className={`px-3 py-1.5 rounded-md text-xs font-medium transition flex items-center gap-1.5 shrink-0 ${
                           activeTab === 'flashcards'
-                            ? 'bg-zinc-900 text-white shadow-xs'
-                            : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100'
+                            ? 'bg-zinc-100 text-zinc-950 shadow-xs'
+                            : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
                         }`}
                       >
                         <Layers className="w-3.5 h-3.5" />
@@ -1344,8 +1344,8 @@ export default function HomePage() {
                         onClick={() => setActiveTab('quiz')}
                         className={`px-3 py-1.5 rounded-md text-xs font-medium transition flex items-center gap-1.5 shrink-0 ${
                           activeTab === 'quiz'
-                            ? 'bg-zinc-900 text-white shadow-xs'
-                            : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100'
+                            ? 'bg-zinc-100 text-zinc-950 shadow-xs'
+                            : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
                         }`}
                       >
                         <HelpCircle className="w-3.5 h-3.5" />
@@ -1359,8 +1359,8 @@ export default function HomePage() {
                         onClick={() => setActiveTab('text')}
                         className={`px-3 py-1.5 rounded-md text-xs font-medium transition flex items-center gap-1.5 shrink-0 ${
                           activeTab === 'text'
-                            ? 'bg-zinc-900 text-white shadow-xs'
-                            : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100'
+                            ? 'bg-zinc-100 text-zinc-950 shadow-xs'
+                            : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
                         }`}
                       >
                         <FileText className="w-3.5 h-3.5" />
@@ -1372,22 +1372,22 @@ export default function HomePage() {
                     {activeTab === 'summary' && (
                       <div className="pt-1">
                         {generatingSummaryDocId === activeDoc.id ? (
-                          <div className="rounded-lg bg-white border border-zinc-200 p-8 flex flex-col items-center justify-center text-center space-y-2.5 shadow-xs">
-                            <RefreshCw className="w-5 h-5 text-zinc-500 animate-spin" />
-                            <h4 className="text-xs sm:text-sm font-semibold text-zinc-900">
+                          <div className="rounded-lg bg-zinc-900 border border-zinc-800 p-8 flex flex-col items-center justify-center text-center space-y-2.5 shadow-xs">
+                            <RefreshCw className="w-5 h-5 text-zinc-400 animate-spin" />
+                            <h4 className="text-xs sm:text-sm font-semibold text-zinc-100">
                               Generating Complete Study Summary...
                             </h4>
-                            <p className="font-mono text-xs text-zinc-500 max-w-md">
+                            <p className="font-mono text-xs text-zinc-400 max-w-md">
                               Synthesizing executive overview, key concepts, and takeaways via Gemini AI.
                             </p>
                           </div>
                         ) : activeDoc.summary ? (
-                          <div className="rounded-lg bg-white border border-zinc-200 p-5 sm:p-6 shadow-xs">
-                            <div className="flex items-center justify-between pb-2 mb-3 border-b border-zinc-200">
-                              <span className="font-mono text-[11px] font-semibold text-zinc-600 uppercase">
+                          <div className="rounded-lg bg-zinc-900 border border-zinc-800 p-5 sm:p-6 shadow-xs">
+                            <div className="flex items-center justify-between pb-2 mb-3 border-b border-zinc-800">
+                              <span className="font-mono text-[11px] font-semibold text-zinc-400 uppercase">
                                 Structured Study Summary
                               </span>
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-mono text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-mono text-[10px] font-medium bg-emerald-950/50 text-emerald-300 border border-emerald-800/60">
                                 <CheckCircle2 className="w-3 h-3" />
                                 Ready
                               </span>
@@ -1395,20 +1395,20 @@ export default function HomePage() {
                             <MarkdownSummaryViewer content={activeDoc.summary} />
                           </div>
                         ) : (
-                          <div className="p-8 text-center rounded-lg border border-dashed border-zinc-200 bg-white space-y-2.5">
-                            <BookOpen className="w-6 h-6 text-zinc-400 mx-auto" />
+                          <div className="p-8 text-center rounded-lg border border-dashed border-zinc-800 bg-zinc-900/40 space-y-2.5">
+                            <BookOpen className="w-6 h-6 text-zinc-500 mx-auto" />
                             <div>
-                              <h4 className="text-xs sm:text-sm font-semibold text-zinc-900">
+                              <h4 className="text-xs sm:text-sm font-semibold text-zinc-100">
                                 No study summary generated yet
                               </h4>
-                              <p className="text-xs text-zinc-500 mt-0.5 font-mono">
+                              <p className="text-xs text-zinc-400 mt-0.5 font-mono">
                                 Extract core themes, definitions, and takeaways with one click.
                               </p>
                             </div>
                             <button
                               onClick={() => handleGenerateSummary(activeDoc.id)}
                               disabled={currentUser.credits < 1}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-medium transition shadow-xs"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-medium transition shadow-xs"
                             >
                               <Sparkles className="w-3.5 h-3.5" />
                               Generate Summary (-1 Credit)
@@ -1422,32 +1422,32 @@ export default function HomePage() {
                     {activeTab === 'flashcards' && (
                       <div className="pt-1">
                         {generatingStudyMaterialsDocId === activeDoc.id ? (
-                          <div className="rounded-lg bg-white border border-zinc-200 p-8 flex flex-col items-center justify-center text-center space-y-2.5 shadow-xs">
-                            <RefreshCw className="w-5 h-5 text-zinc-500 animate-spin" />
-                            <h4 className="text-xs sm:text-sm font-semibold text-zinc-900">
+                          <div className="rounded-lg bg-zinc-900 border border-zinc-800 p-8 flex flex-col items-center justify-center text-center space-y-2.5 shadow-xs">
+                            <RefreshCw className="w-5 h-5 text-zinc-400 animate-spin" />
+                            <h4 className="text-xs sm:text-sm font-semibold text-zinc-100">
                               Generating Active-Recall Flashcards...
                             </h4>
-                            <p className="font-mono text-xs text-zinc-500 max-w-md">
+                            <p className="font-mono text-xs text-zinc-400 max-w-md">
                               Extracting key definitions into an interactive flip-card deck.
                             </p>
                           </div>
                         ) : (activeDoc.flashcards?.length || 0) > 0 ? (
                           <FlashcardDeckViewer flashcards={activeDoc.flashcards || []} />
                         ) : (
-                          <div className="p-8 text-center rounded-lg border border-dashed border-zinc-200 bg-white space-y-2.5">
-                            <Layers className="w-6 h-6 text-zinc-400 mx-auto" />
+                          <div className="p-8 text-center rounded-lg border border-dashed border-zinc-800 bg-zinc-900/40 space-y-2.5">
+                            <Layers className="w-6 h-6 text-zinc-500 mx-auto" />
                             <div>
-                              <h4 className="text-xs sm:text-sm font-semibold text-zinc-900">
+                              <h4 className="text-xs sm:text-sm font-semibold text-zinc-100">
                                 No flashcards created yet
                               </h4>
-                              <p className="text-xs text-zinc-500 mt-0.5 font-mono">
+                              <p className="text-xs text-zinc-400 mt-0.5 font-mono">
                                 Generate 6 high-yield flip cards and 5 quiz questions for this document.
                               </p>
                             </div>
                             <button
                               onClick={() => handleGenerateStudyMaterials(activeDoc.id)}
                               disabled={currentUser.credits < 1}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-medium transition shadow-xs"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-medium transition shadow-xs"
                             >
                               <Sparkles className="w-3.5 h-3.5" />
                               Generate Flashcards & Quiz (-1 Credit)
@@ -1461,32 +1461,32 @@ export default function HomePage() {
                     {activeTab === 'quiz' && (
                       <div className="pt-1">
                         {generatingStudyMaterialsDocId === activeDoc.id ? (
-                          <div className="rounded-lg bg-white border border-zinc-200 p-8 flex flex-col items-center justify-center text-center space-y-2.5 shadow-xs">
-                            <RefreshCw className="w-5 h-5 text-zinc-500 animate-spin" />
-                            <h4 className="text-xs sm:text-sm font-semibold text-zinc-900">
+                          <div className="rounded-lg bg-zinc-900 border border-zinc-800 p-8 flex flex-col items-center justify-center text-center space-y-2.5 shadow-xs">
+                            <RefreshCw className="w-5 h-5 text-zinc-400 animate-spin" />
+                            <h4 className="text-xs sm:text-sm font-semibold text-zinc-100">
                               Generating Comprehension Quiz...
                             </h4>
-                            <p className="font-mono text-xs text-zinc-500 max-w-md">
+                            <p className="font-mono text-xs text-zinc-400 max-w-md">
                               Creating multiple-choice questions with instant grading and explanations.
                             </p>
                           </div>
                         ) : (activeDoc.quizQuestions?.length || 0) > 0 ? (
                           <InteractiveQuizViewer questions={activeDoc.quizQuestions || []} />
                         ) : (
-                          <div className="p-8 text-center rounded-lg border border-dashed border-zinc-200 bg-white space-y-2.5">
-                            <HelpCircle className="w-6 h-6 text-zinc-400 mx-auto" />
+                          <div className="p-8 text-center rounded-lg border border-dashed border-zinc-800 bg-zinc-900/40 space-y-2.5">
+                            <HelpCircle className="w-6 h-6 text-zinc-500 mx-auto" />
                             <div>
-                              <h4 className="text-xs sm:text-sm font-semibold text-zinc-900">
+                              <h4 className="text-xs sm:text-sm font-semibold text-zinc-100">
                                 No quiz questions created yet
                               </h4>
-                              <p className="text-xs text-zinc-500 mt-0.5 font-mono">
+                              <p className="text-xs text-zinc-400 mt-0.5 font-mono">
                                 Generate 5 multiple-choice questions with instant grading and explanations.
                               </p>
                             </div>
                             <button
                               onClick={() => handleGenerateStudyMaterials(activeDoc.id)}
                               disabled={currentUser.credits < 1}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-medium transition shadow-xs"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-medium transition shadow-xs"
                             >
                               <Sparkles className="w-3.5 h-3.5" />
                               Generate Flashcards & Quiz (-1 Credit)
@@ -1499,13 +1499,13 @@ export default function HomePage() {
                     {/* TAB CONTENT 4: Original Text */}
                     {activeTab === 'text' && (
                       <div className="pt-1 space-y-2">
-                        <div className="flex items-center justify-between text-xs text-zinc-500 font-mono">
-                          <span className="font-semibold text-zinc-700">
+                        <div className="flex items-center justify-between text-xs text-zinc-400 font-mono">
+                          <span className="font-semibold text-zinc-300">
                             Extracted Source Text
                           </span>
                           <span>{activeDoc.content.length.toLocaleString()} characters</span>
                         </div>
-                        <div className="p-4 sm:p-5 rounded-lg bg-white border border-zinc-200 text-xs text-zinc-800 font-mono max-h-[600px] overflow-y-auto whitespace-pre-wrap leading-relaxed select-text shadow-xs">
+                        <div className="p-4 sm:p-5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs text-zinc-300 font-mono max-h-[600px] overflow-y-auto whitespace-pre-wrap leading-relaxed select-text shadow-xs">
                           {activeDoc.content}
                         </div>
                       </div>
@@ -1515,18 +1515,18 @@ export default function HomePage() {
               ) : (
                 /* Empty Workspace (No document selected) */
                 <div className="my-auto py-16 text-center max-w-sm mx-auto space-y-3">
-                  <div className="w-10 h-10 rounded-md bg-zinc-100 text-zinc-700 flex items-center justify-center mx-auto border border-zinc-200 shadow-xs">
+                  <div className="w-10 h-10 rounded-md bg-zinc-900 text-zinc-300 flex items-center justify-center mx-auto border border-zinc-800 shadow-xs">
                     <BookOpen className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-semibold text-zinc-900">Study Workspace</h3>
-                    <p className="text-xs text-zinc-500 mt-1 font-mono">
+                    <h3 className="text-sm font-semibold text-zinc-100">Study Workspace</h3>
+                    <p className="text-xs text-zinc-400 mt-1 font-mono">
                       Select a document from the left sidebar or upload a new PDF / TXT note to begin.
                     </p>
                   </div>
                   <button
                     onClick={() => setShowUploadDrawer(true)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-medium transition shadow-xs"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-medium transition shadow-xs"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     Upload Document
@@ -1538,15 +1538,15 @@ export default function HomePage() {
         ) : (
           /* ================= Unauthenticated Login / Register View ================= */
           <div className="w-full max-w-sm mx-auto my-auto py-12 px-4">
-            <div className="rounded-lg bg-white border border-zinc-200 shadow-xs p-6">
+            <div className="rounded-lg bg-zinc-900 border border-zinc-800 shadow-xs p-6">
               <div className="text-center mb-5">
-                <div className="inline-flex w-9 h-9 rounded-md bg-zinc-900 items-center justify-center text-white shadow-xs mb-2.5">
-                  <Sparkles className="w-4 h-4 text-zinc-100" />
+                <div className="inline-flex w-9 h-9 rounded-md bg-zinc-100 items-center justify-center text-zinc-950 shadow-xs mb-2.5">
+                  <Sparkles className="w-4 h-4" />
                 </div>
-                <h2 className="text-lg font-semibold tracking-tight text-zinc-900">
+                <h2 className="text-lg font-semibold tracking-tight text-zinc-100">
                   {authMode === 'register' ? 'Create an Account' : 'Welcome to StudyMind'}
                 </h2>
-                <p className="text-zinc-500 font-mono text-xs mt-1">
+                <p className="text-zinc-400 font-mono text-xs mt-1">
                   {authMode === 'register'
                     ? '10 initial credits credited on register'
                     : 'Sign in to access your workspace'}
@@ -1554,7 +1554,7 @@ export default function HomePage() {
               </div>
 
               {/* Mode Switcher Tabs */}
-              <div className="grid grid-cols-2 p-0.5 bg-zinc-100 rounded-md mb-4 border border-zinc-200 text-xs">
+              <div className="grid grid-cols-2 p-0.5 bg-zinc-950 rounded-md mb-4 border border-zinc-800 text-xs">
                 <button
                   type="button"
                   onClick={() => {
@@ -1564,8 +1564,8 @@ export default function HomePage() {
                   }}
                   className={`py-1.5 font-medium rounded transition flex items-center justify-center gap-1.5 ${
                     authMode === 'register'
-                      ? 'bg-white text-zinc-900 shadow-xs'
-                      : 'text-zinc-500 hover:text-zinc-900'
+                      ? 'bg-zinc-800 text-zinc-100 shadow-xs'
+                      : 'text-zinc-400 hover:text-zinc-200'
                   }`}
                 >
                   <UserPlus className="w-3.5 h-3.5" />
@@ -1580,8 +1580,8 @@ export default function HomePage() {
                   }}
                   className={`py-1.5 font-medium rounded transition flex items-center justify-center gap-1.5 ${
                     authMode === 'login'
-                      ? 'bg-white text-zinc-900 shadow-xs'
-                      : 'text-zinc-500 hover:text-zinc-900'
+                      ? 'bg-zinc-800 text-zinc-100 shadow-xs'
+                      : 'text-zinc-400 hover:text-zinc-200'
                   }`}
                 >
                   <LogIn className="w-3.5 h-3.5" />
@@ -1591,13 +1591,13 @@ export default function HomePage() {
 
               {/* Error & Success Alerts */}
               {formError && (
-                <div className="mb-3.5 p-2.5 rounded-md bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+                <div className="mb-3.5 p-2.5 rounded-md bg-rose-950/40 border border-rose-900/60 text-rose-300 text-xs flex items-center gap-2">
                   <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                   <span>{formError}</span>
                 </div>
               )}
               {formSuccess && (
-                <div className="mb-3.5 p-2.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
+                <div className="mb-3.5 p-2.5 rounded-md bg-emerald-950/40 border border-emerald-800/60 text-emerald-300 text-xs flex items-center gap-2">
                   <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
                   <span>{formSuccess}</span>
                 </div>
@@ -1606,35 +1606,35 @@ export default function HomePage() {
               {/* Form */}
               <form onSubmit={handleAuthSubmit} className="space-y-3">
                 <div>
-                  <label className="block text-xs font-medium text-zinc-700 mb-1">
+                  <label className="block text-xs font-medium text-zinc-300 mb-1">
                     Email Address
                   </label>
                   <div className="relative">
-                    <Mail className="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-2.5" />
+                    <Mail className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-2.5" />
                     <input
                       type="email"
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="user@example.com"
-                      className="w-full bg-white border border-zinc-300 rounded-md pl-8 pr-3 py-1.5 text-xs text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition"
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-md pl-8 pr-3 py-1.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-zinc-700 mb-1">
+                  <label className="block text-xs font-medium text-zinc-300 mb-1">
                     Password
                   </label>
                   <div className="relative">
-                    <Lock className="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-2.5" />
+                    <Lock className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-2.5" />
                     <input
                       type="password"
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Minimum 6 characters"
-                      className="w-full bg-white border border-zinc-300 rounded-md pl-8 pr-3 py-1.5 text-xs text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition"
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-md pl-8 pr-3 py-1.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition"
                     />
                   </div>
                 </div>
@@ -1642,7 +1642,7 @@ export default function HomePage() {
                 <button
                   type="submit"
                   disabled={formLoading}
-                  className="w-full mt-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-medium transition shadow-xs disabled:opacity-50"
+                  className="w-full mt-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-medium transition shadow-xs disabled:opacity-50"
                 >
                   {formLoading ? (
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -1665,7 +1665,7 @@ export default function HomePage() {
       </main>
 
       {/* Minimal Footer */}
-      <footer className="border-t border-zinc-200 py-2.5 px-4 text-center font-mono text-[11px] text-zinc-500 bg-white">
+      <footer className="border-t border-zinc-800/80 py-2.5 px-4 text-center font-mono text-[11px] text-zinc-500 bg-zinc-950">
         StudyMind • Active-Recall Study Workspace • PostgreSQL & Gemini
       </footer>
     </div>
