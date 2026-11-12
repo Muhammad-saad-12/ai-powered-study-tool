@@ -21,6 +21,7 @@ model Document {
   id        String   @id @default(cuid())
   title     String
   content   String   @db.Text
+  summary   String?  @db.Text
   fileType  String
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)

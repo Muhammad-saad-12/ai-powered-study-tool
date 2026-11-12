@@ -24,6 +24,8 @@ import {
   ChevronUp,
   Clock,
   Layers,
+  BookOpen,
+  Bot,
 } from 'lucide-react'
 
 interface User {
@@ -38,6 +40,7 @@ interface DocumentItem {
   id: string
   title: string
   content: string
+  summary?: string | null
   fileType: string
   userId: string
   createdAt: string
@@ -51,6 +54,71 @@ interface ApiLog {
   method: string
   status: number
   data: unknown
+}
+
+// Formatted Markdown viewer for structured summaries
+function MarkdownSummaryViewer({ content }: { content: string }) {
+  const lines = content.split('\n')
+  return (
+    <div className="space-y-3 font-sans text-xs sm:text-sm text-slate-200 leading-relaxed">
+      {lines.map((line, idx) => {
+        const trimmed = line.trim()
+        if (trimmed.startsWith('## Executive Overview')) {
+          return (
+            <div key={idx} className="pt-2 pb-1 border-b border-indigo-500/30">
+              <span className="text-sm font-bold text-indigo-400 flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-indigo-400" />
+                Executive Overview
+              </span>
+            </div>
+          )
+        }
+        if (trimmed.startsWith('## Key Concepts')) {
+          return (
+            <div key={idx} className="pt-4 pb-1 border-b border-amber-500/30">
+              <span className="text-sm font-bold text-amber-400 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-400" />
+                Key Concepts
+              </span>
+            </div>
+          )
+        }
+        if (trimmed.startsWith('## Actionable Takeaways')) {
+          return (
+            <div key={idx} className="pt-4 pb-1 border-b border-emerald-500/30">
+              <span className="text-sm font-bold text-emerald-400 flex items-center gap-2">
+                <Zap className="w-4 h-4 text-emerald-400" />
+                Actionable Takeaways
+              </span>
+            </div>
+          )
+        }
+        if (trimmed.startsWith('## ')) {
+          return (
+            <h4 key={idx} className="text-sm font-bold text-slate-100 pt-3">
+              {trimmed.substring(3)}
+            </h4>
+          )
+        }
+        if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+          return (
+            <div key={idx} className="flex items-start gap-2 pl-2 text-slate-300">
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 mt-1.5 shrink-0" />
+              <span>{trimmed.substring(2)}</span>
+            </div>
+          )
+        }
+        if (!trimmed) {
+          return <div key={idx} className="h-1" />
+        }
+        return (
+          <p key={idx} className="text-slate-300">
+            {trimmed}
+          </p>
+        )
+      })}
+    </div>
+  )
 }
 
 export default function HomePage() {
@@ -69,6 +137,11 @@ export default function HomePage() {
   const [documents, setDocuments] = useState<DocumentItem[]>([])
   const [isLoadingDocs, setIsLoadingDocs] = useState(false)
   const [expandedDocId, setExpandedDocId] = useState<string | null>(null)
+
+  // Live Summary Streaming state
+  const [activeStreamingDocId, setActiveStreamingDocId] = useState<string | null>(null)
+  const [streamedSummaries, setStreamedSummaries] = useState<{ [docId: string]: string }>({})
+  const [summaryErrors, setSummaryErrors] = useState<{ [docId: string]: string }>({})
 
   // Document upload/paste form state
   const [inputMode, setInputMode] = useState<'upload' | 'paste'>('upload')
@@ -235,7 +308,6 @@ export default function HomePage() {
           body: formData,
         })
       } else {
-        // Text paste mode
         if (!docContent.trim()) {
           setDocError('Please paste or enter document content')
           setDocSubmitting(false)
@@ -260,16 +332,13 @@ export default function HomePage() {
         setDocError(data.error || 'Failed to process document')
       } else {
         setDocSuccess(data.message || 'Document uploaded and 1 credit deducted!')
-        // Update user credits immediately
         if (typeof data.remainingCredits === 'number') {
           setCurrentUser((prev) => (prev ? { ...prev, credits: data.remainingCredits } : null))
         }
-        // Reset form inputs
         setDocTitle('')
         setDocContent('')
         setSelectedFile(null)
         if (fileInputRef.current) fileInputRef.current.value = ''
-        // Refresh documents list
         fetchDocuments()
       }
     } catch {
@@ -279,7 +348,89 @@ export default function HomePage() {
     }
   }
 
-  // Handle credit consumption or reset
+  // Handle streaming summary generation with Gemini 2.5 Flash
+  const handleGenerateSummary = async (docId: string) => {
+    if (currentUser && currentUser.credits < 1) {
+      setSummaryErrors((prev) => ({
+        ...prev,
+        [docId]: 'Insufficient credits! You need at least 1 credit to generate a summary.',
+      }))
+      return
+    }
+
+    setSummaryErrors((prev) => ({ ...prev, [docId]: '' }))
+    setActiveStreamingDocId(docId)
+    setExpandedDocId(docId) // automatically open document details
+    setStreamedSummaries((prev) => ({ ...prev, [docId]: '' }))
+
+    // Optimistically deduct 1 credit from UI
+    setCurrentUser((prev) => (prev ? { ...prev, credits: Math.max(0, prev.credits - 1) } : null))
+
+    try {
+      const endpoint = `/api/documents/${docId}/summary`
+      const res = await fetch(endpoint, {
+        method: 'POST',
+      })
+
+      const remainingHeader = res.headers.get('X-Remaining-Credits')
+      if (remainingHeader !== null) {
+        const parsedCredits = parseInt(remainingHeader, 10)
+        if (!isNaN(parsedCredits)) {
+          setCurrentUser((prev) => (prev ? { ...prev, credits: parsedCredits } : null))
+        }
+      }
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({ error: 'Failed to generate summary' }))
+        addLog(endpoint, 'POST', res.status, errJson)
+        setSummaryErrors((prev) => ({
+          ...prev,
+          [docId]: errJson.error || 'Summary generation failed',
+        }))
+        // Refund credit on error
+        fetchCurrentUser()
+        setActiveStreamingDocId(null)
+        return
+      }
+
+      addLog(endpoint, 'POST', 200, { status: 'Streaming started (Gemini 2.5 Flash)' })
+
+      const reader = res.body?.getReader()
+      if (!reader) {
+        throw new Error('ReadableStream not supported on this response')
+      }
+
+      const decoder = new TextDecoder()
+      let accumulatedSummary = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        const chunk = decoder.decode(value, { stream: true })
+        accumulatedSummary += chunk
+        setStreamedSummaries((prev) => ({
+          ...prev,
+          [docId]: accumulatedSummary,
+        }))
+      }
+
+      // Update document item in state with saved summary
+      setDocuments((prevDocs) =>
+        prevDocs.map((d) => (d.id === docId ? { ...d, summary: accumulatedSummary } : d))
+      )
+    } catch (err) {
+      console.error('Error while streaming summary:', err)
+      setSummaryErrors((prev) => ({
+        ...prev,
+        [docId]: 'Stream connection interrupted. Please try again.',
+      }))
+      fetchCurrentUser()
+    } finally {
+      setActiveStreamingDocId(null)
+    }
+  }
+
+  // Handle quick credit reset or test deduction
   const handleCreditAction = async (action: 'use' | 'reset') => {
     setCreditActionLoading(true)
     setDocError(null)
@@ -318,7 +469,7 @@ export default function HomePage() {
                 AI Productivity Platform
               </span>
               <span className="ml-2 px-2 py-0.5 text-xs font-medium rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                PDF & Text Parser
+                Gemini 2.5 Flash Summary Stream
               </span>
             </div>
           </div>
@@ -361,7 +512,7 @@ export default function HomePage() {
                     <span className="text-indigo-400">{currentUser.email}</span>
                   </h1>
                   <p className="text-slate-400 text-sm mt-1">
-                    Upload PDF / TXT documents or paste text to parse and store them. Each document deduction requires 1 credit.
+                    Upload documents or paste text to parse content and stream structured Markdown study summaries powered by Google Gemini 2.5 Flash.
                   </p>
                 </div>
 
@@ -441,26 +592,24 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* Quick AI Task / Deduct Test */}
+              {/* Gemini 2.5 Flash Summarizer Metric */}
               <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-md flex flex-col justify-between">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
-                    <Zap className="w-4 h-4 text-amber-400" />
-                    Quota Cost
+                  <span className="text-xs font-semibold text-purple-400 flex items-center gap-1.5">
+                    <Bot className="w-4 h-4 text-purple-400" />
+                    AI Study Summarizer
                   </span>
-                  <span className="text-xs text-slate-500">Transaction Safe</span>
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                    gemini-2.5-flash
+                  </span>
                 </div>
-                <p className="text-xs text-slate-400 mb-3">
-                  POST /api/documents parses files, verifies credits, and deducts 1 credit inside a Prisma transaction.
+                <p className="text-xs text-slate-400 mb-2 leading-relaxed">
+                  Generates Executive Overview, Key Concepts, and Actionable Takeaways via streamText and saves to Document.
                 </p>
-                <button
-                  onClick={() => handleCreditAction('use')}
-                  disabled={creditActionLoading || currentUser.credits <= 0}
-                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700/80 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium text-slate-300 border border-slate-700 transition"
-                >
-                  <Zap className="w-3.5 h-3.5 text-amber-300" />
-                  Test Direct -1 Credit
-                </button>
+                <div className="text-[11px] text-amber-300 flex items-center gap-1.5">
+                  <Coins className="w-3.5 h-3.5" />
+                  Costs 1 Credit per summary
+                </div>
               </div>
             </div>
 
@@ -541,7 +690,7 @@ export default function HomePage() {
                     placeholder={
                       inputMode === 'upload'
                         ? 'Leave blank to use filename'
-                        : 'e.g. Project Architecture Plan'
+                        : 'e.g. Distributed Consensus Paper'
                     }
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
                   />
@@ -610,7 +759,7 @@ export default function HomePage() {
                       rows={5}
                       value={docContent}
                       onChange={(e) => setDocContent(e.target.value)}
-                      placeholder="Paste meeting notes, specifications, articles, or transcripts here..."
+                      placeholder="Paste research papers, meeting notes, project specs, or study material here..."
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition font-mono leading-relaxed"
                     />
                   </div>
@@ -650,16 +799,16 @@ export default function HomePage() {
               </form>
             </div>
 
-            {/* List of Uploaded Documents */}
+            {/* List of Uploaded Documents with Summary Generation */}
             <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 sm:p-8 shadow-xl">
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h2 className="text-lg font-bold text-white flex items-center gap-2">
                     <Layers className="w-5 h-5 text-indigo-400" />
-                    Your Uploaded Documents
+                    Your Uploaded Documents & AI Summaries
                   </h2>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Retrieved via GET /api/documents from PostgreSQL
+                    Stream comprehensive Markdown study summaries live using Gemini 2.5 Flash
                   </p>
                 </div>
 
@@ -687,30 +836,41 @@ export default function HomePage() {
                   </p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {documents.map((doc) => {
                     const isExpanded = expandedDocId === doc.id
+                    const isStreaming = activeStreamingDocId === doc.id
+                    const currentSummary = streamedSummaries[doc.id] || doc.summary
+                    const docSummaryError = summaryErrors[doc.id]
+
                     return (
                       <div
                         key={doc.id}
-                        className="rounded-2xl bg-slate-950 border border-slate-800/80 hover:border-slate-700 transition overflow-hidden"
+                        className="rounded-2xl bg-slate-950 border border-slate-800 hover:border-slate-700 transition overflow-hidden shadow-sm"
                       >
-                        <div
-                          onClick={() => setExpandedDocId(isExpanded ? null : doc.id)}
-                          className="p-4 flex items-center justify-between cursor-pointer select-none"
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center shrink-0">
-                              <FileText className="w-4 h-4 text-indigo-400" />
+                        {/* Header bar */}
+                        <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                          <div
+                            onClick={() => setExpandedDocId(isExpanded ? null : doc.id)}
+                            className="flex items-center gap-3 min-w-0 cursor-pointer select-none flex-1"
+                          >
+                            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-500/20">
+                              <FileText className="w-5 h-5" />
                             </div>
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
-                                <h3 className="text-sm font-semibold text-white truncate max-w-sm sm:max-w-md">
+                                <h3 className="text-sm font-semibold text-white truncate max-w-xs sm:max-w-md">
                                   {doc.title}
                                 </h3>
                                 <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase shrink-0">
                                   {doc.fileType}
                                 </span>
+                                {currentSummary && (
+                                  <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-md bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                                    <Sparkles className="w-2.5 h-2.5" />
+                                    Summarized
+                                  </span>
+                                )}
                               </div>
                               <div className="flex items-center gap-3 text-xs text-slate-400 mt-0.5">
                                 <span className="flex items-center gap-1">
@@ -727,10 +887,37 @@ export default function HomePage() {
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2">
+                          {/* Action Buttons */}
+                          <div className="flex items-center gap-2.5 shrink-0 self-end sm:self-auto">
+                            {/* Generate Summary Button */}
+                            <button
+                              onClick={() => handleGenerateSummary(doc.id)}
+                              disabled={isStreaming || currentUser.credits < 1}
+                              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition shadow-md ${
+                                currentSummary
+                                  ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+                                  : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-purple-600/20'
+                              } disabled:opacity-40 disabled:cursor-not-allowed`}
+                            >
+                              {isStreaming ? (
+                                <>
+                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                  Streaming Summary...
+                                </>
+                              ) : (
+                                <>
+                                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                                  {currentSummary ? 'Regenerate Summary (-1)' : 'Generate Summary (-1)'}
+                                </>
+                              )}
+                            </button>
+
+                            {/* Accordion toggle */}
                             <button
                               type="button"
-                              className="text-slate-400 hover:text-white p-1 rounded-lg"
+                              onClick={() => setExpandedDocId(isExpanded ? null : doc.id)}
+                              className="text-slate-400 hover:text-white p-2 rounded-xl bg-slate-900 border border-slate-800"
+                              title={isExpanded ? 'Collapse' : 'Expand'}
                             >
                               {isExpanded ? (
                                 <ChevronUp className="w-4 h-4" />
@@ -741,15 +928,63 @@ export default function HomePage() {
                           </div>
                         </div>
 
-                        {/* Expanded Content Preview */}
+                        {/* Error Alert for Summary */}
+                        {docSummaryError && (
+                          <div className="mx-4 mb-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-2">
+                            <AlertCircle className="w-4 h-4 shrink-0" />
+                            <span>{docSummaryError}</span>
+                          </div>
+                        )}
+
+                        {/* Collapsible Content & Summary Section */}
                         {isExpanded && (
-                          <div className="border-t border-slate-800/80 bg-slate-900/50 p-4">
-                            <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-                              <span className="font-medium text-slate-300">Parsed Content Preview:</span>
-                              <span className="font-mono text-[11px] text-slate-500">ID: {doc.id}</span>
-                            </div>
-                            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300 font-mono max-h-60 overflow-y-auto whitespace-pre-wrap leading-relaxed">
-                              {doc.content}
+                          <div className="border-t border-slate-800/80 bg-slate-900/40 p-4 sm:p-6 space-y-5">
+                            {/* Structured AI Study Summary Box */}
+                            {(currentSummary || isStreaming) && (
+                              <div className="rounded-2xl bg-gradient-to-br from-slate-900 to-purple-950/20 border border-purple-500/30 p-5 shadow-lg shadow-purple-950/20">
+                                <div className="flex items-center justify-between pb-3 mb-3 border-b border-purple-500/20">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-6 h-6 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center">
+                                      <Bot className="w-3.5 h-3.5" />
+                                    </div>
+                                    <span className="text-xs font-bold text-purple-300">
+                                      Structured Study Summary
+                                    </span>
+                                    <span className="text-[10px] text-slate-400">
+                                      (Gemini 2.5 Flash)
+                                    </span>
+                                  </div>
+
+                                  {isStreaming && (
+                                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 animate-pulse">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping" />
+                                      Streaming Live Tokens...
+                                    </span>
+                                  )}
+                                </div>
+
+                                <MarkdownSummaryViewer content={currentSummary || ''} />
+
+                                {isStreaming && (
+                                  <span className="inline-block w-2 h-4 bg-indigo-400 animate-pulse ml-1 align-middle" />
+                                )}
+                              </div>
+                            )}
+
+                            {/* Raw Parsed Content */}
+                            <div>
+                              <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+                                <span className="font-semibold text-slate-300 flex items-center gap-1.5">
+                                  <FileText className="w-3.5 h-3.5 text-slate-400" />
+                                  Original Parsed Text Content
+                                </span>
+                                <span className="font-mono text-[11px] text-slate-500">
+                                  ID: {doc.id}
+                                </span>
+                              </div>
+                              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300 font-mono max-h-52 overflow-y-auto whitespace-pre-wrap leading-relaxed select-text">
+                                {doc.content}
+                              </div>
                             </div>
                           </div>
                         )}
@@ -929,7 +1164,7 @@ export default function HomePage() {
             <div className="mt-6 text-center text-xs text-slate-500 space-y-1">
               <div>✓ ZOD Schema Validation • bcryptjs (10 rounds)</div>
               <div>✓ JOSE JWT Token in HTTP-Only Cookie</div>
-              <div>✓ Prisma Document Model • PDF-Parse & TXT extraction</div>
+              <div>✓ Gemini 2.5 Flash Streaming Study Summaries</div>
             </div>
           </div>
         )}
@@ -937,7 +1172,7 @@ export default function HomePage() {
 
       {/* Footer */}
       <footer className="border-t border-slate-900 py-4 text-center text-xs text-slate-600">
-        AI Productivity Tool • Next.js App Router • Prisma PostgreSQL • PDF-Parse
+        AI Productivity Tool • Next.js App Router • Prisma PostgreSQL • Google Gemini 2.5 Flash
       </footer>
     </div>
   )
