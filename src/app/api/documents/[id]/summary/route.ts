@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { streamText } from 'ai'
+import { generateText } from 'ai'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { prisma } from '@/lib/prisma'
 import { verifyAuthToken, AUTH_COOKIE_NAME } from '@/lib/auth'
@@ -27,14 +27,17 @@ async function getAuthenticatedUser(request: NextRequest) {
   })
 }
 
-// Fallback model list in order of precedence
+// Fallback models in priority order
 const CANDIDATE_MODELS = [
-  { name: 'gemini-3.5-flash-lite', maxRetries: 0 },
-  { name: 'gemini-3.8-flash', maxRetries: 0 },
-  { name: 'gemini-3.6-flash', maxRetries: 0 },
+  'gemini-3.5-flash-lite',
+  'gemini-3.1-flash-lite',
+  'gemini-3.8-flash',
 ] as const
 
-function isRetryableOrFallbackError(err: unknown): boolean {
+const MAX_ATTEMPTS_PER_MODEL = 2
+const RETRY_BACKOFF_MS = 1000
+
+function isRetryableOrCongestionError(err: unknown): boolean {
   if (!err) return false
 
   const status =
@@ -129,21 +132,7 @@ export async function POST(
     apiKey: apiKey!,
   })
 
-  // 5. Deduct 1 credit from user
-  const updatedUser = await prisma.user.update({
-    where: { id: user.id },
-    data: {
-      credits: {
-        decrement: 1,
-      },
-    },
-    select: {
-      id: true,
-      credits: true,
-    },
-  })
-
-  // 6. Truncate document content safely to 15,000 characters
+  // 5. Truncate document content to 15,000 characters
   const truncatedContent = (document.content || '').slice(0, 15000)
 
   const systemPrompt = `You are an expert academic tutor and AI productivity assistant.
@@ -166,114 +155,101 @@ ${truncatedContent}
 
 Please generate the structured Markdown study summary now.`
 
-  // 7. Iterate through models with automatic fallback on 503, 429, or empty stream
+  // 6. Automatic retry and fallback loop across candidate models using generateText
+  let completeSummary = ''
   let selectedModel = ''
-  let initialChunk = ''
-  let activeIterator: AsyncIterator<string> | null = null
   let lastFailureError: unknown = null
 
-  for (const { name: modelName, maxRetries } of CANDIDATE_MODELS) {
-    try {
-      const result = streamText({
-        model: google(modelName),
-        maxRetries,
-        system: systemPrompt,
-        prompt: userPrompt,
-      })
+  for (const modelName of CANDIDATE_MODELS) {
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS_PER_MODEL; attempt++) {
+      try {
+        const response = await generateText({
+          model: google(modelName),
+          maxOutputTokens: 1200,
+          system: systemPrompt,
+          prompt: userPrompt,
+        })
 
-      const iterator = result.textStream[Symbol.asyncIterator]()
-      const firstResult = await iterator.next()
+        const text = (response.text || '').trim()
+        if (!text) {
+          throw new Error(`Model ${modelName} returned an empty summary`)
+        }
 
-      // Detect empty stream: completed with no text
-      if (firstResult.done && (!firstResult.value || !firstResult.value.trim())) {
+        completeSummary = text
+        selectedModel = modelName
+        break
+      } catch (err) {
+        lastFailureError = err
+        const isCongested = isRetryableOrCongestionError(err)
         console.warn(
-          `[Summary Fallback] Model '${modelName}' produced an empty stream. Falling back to next model...`
+          `[Summary] Model '${modelName}' attempt ${attempt}/${MAX_ATTEMPTS_PER_MODEL} failed (congestion=${isCongested}):`,
+          err instanceof Error ? err.message : err
         )
-        continue
-      }
 
-      // Model successfully started and produced the initial chunk
-      selectedModel = modelName
-      initialChunk = firstResult.value || ''
-      activeIterator = iterator
+        // 1-second backoff on 503/429 congestion before retry
+        if (attempt < MAX_ATTEMPTS_PER_MODEL && isCongested) {
+          await new Promise((resolve) => setTimeout(resolve, RETRY_BACKOFF_MS))
+        }
+      }
+    }
+
+    if (completeSummary) {
       break
-    } catch (err) {
-      lastFailureError = err
-      const isExpectedFallback = isRetryableOrFallbackError(err)
-      console.warn(
-        `[Summary Fallback] Model '${modelName}' failed (retryable/503/429=${isExpectedFallback}):`,
-        err instanceof Error ? err.message : err
-      )
-
-      // Fall back if 503, 429, or retryable
-      if (isExpectedFallback || CANDIDATE_MODELS[CANDIDATE_MODELS.length - 1].name !== modelName) {
-        continue
-      }
     }
   }
 
-  // If all candidate models failed or produced empty streams
-  if (!activeIterator) {
-    console.error('[Summary Fallback] All candidate models failed. Refunding credit.')
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { credits: { increment: 1 } },
-    })
-
+  // 7. If all models are congested / failed, return 503 without deducting credit
+  if (!completeSummary) {
+    console.error('[Summary] All candidate models failed. No credits deducted.')
     const errorDetails =
       lastFailureError instanceof Error
         ? lastFailureError.message
-        : 'All AI models (gemini-3.5-flash-lite, gemini-3.8-flash, gemini-3.6-flash) failed or returned empty streams.'
+        : 'All AI models (gemini-3.5-flash-lite, gemini-3.1-flash-lite, gemini-3.8-flash) are temporarily congested or unavailable.'
 
     return NextResponse.json(
       {
-        error: `Summary generation failed after fallback attempts: ${errorDetails}`,
+        error:
+          'All AI summary models are temporarily congested or unavailable. No credits were deducted. Please try again in a few moments.',
+        details: errorDetails,
       },
       { status: 503 }
     )
   }
 
-  // 8. Construct response stream and save full summary to Document record on completion
-  const encoder = new TextEncoder()
-  let accumulatedSummary = initialChunk
+  // 8. Deduct 1 credit and save the full summary to Document record in an atomic transaction
+  const [updatedUser, updatedDoc] = await prisma.$transaction([
+    prisma.user.update({
+      where: { id: user.id },
+      data: {
+        credits: {
+          decrement: 1,
+        },
+      },
+      select: {
+        id: true,
+        credits: true,
+      },
+    }),
+    prisma.document.update({
+      where: { id: document.id },
+      data: {
+        summary: completeSummary,
+      },
+      select: {
+        id: true,
+        summary: true,
+      },
+    }),
+  ])
 
-  const responseStream = new ReadableStream({
-    async start(controller) {
-      try {
-        if (initialChunk) {
-          controller.enqueue(encoder.encode(initialChunk))
-        }
-
-        while (true) {
-          const { done, value } = await activeIterator!.next()
-          if (done) break
-          if (value) {
-            accumulatedSummary += value
-            controller.enqueue(encoder.encode(value))
-          }
-        }
-
-        controller.close()
-
-        // Persist full summary to Document record in database
-        if (accumulatedSummary.trim()) {
-          await prisma.document.update({
-            where: { id: document.id },
-            data: { summary: accumulatedSummary },
-          })
-        }
-      } catch (streamErr) {
-        console.error('Error during active text stream transmission:', streamErr)
-        controller.error(streamErr)
-      }
+  // 9. Return clean JSON response
+  return NextResponse.json(
+    {
+      success: true,
+      summary: updatedDoc.summary,
+      credits: updatedUser.credits,
+      modelUsed: selectedModel,
     },
-  })
-
-  return new Response(responseStream, {
-    headers: {
-      'Content-Type': 'text/plain; charset=utf-8',
-      'X-Remaining-Credits': String(updatedUser.credits),
-      'X-Model-Used': selectedModel,
-    },
-  })
+    { status: 200 }
+  )
 }

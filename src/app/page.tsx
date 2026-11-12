@@ -138,9 +138,9 @@ export default function HomePage() {
   const [isLoadingDocs, setIsLoadingDocs] = useState(false)
   const [expandedDocId, setExpandedDocId] = useState<string | null>(null)
 
-  // Live Summary Streaming state
-  const [activeStreamingDocId, setActiveStreamingDocId] = useState<string | null>(null)
-  const [streamedSummaries, setStreamedSummaries] = useState<{ [docId: string]: string }>({})
+  // Complete Summary Generation state (generateText with retry & fallback)
+  const [generatingSummaryDocId, setGeneratingSummaryDocId] = useState<string | null>(null)
+  const [summaryModelUsed, setSummaryModelUsed] = useState<{ [docId: string]: string }>({})
   const [summaryErrors, setSummaryErrors] = useState<{ [docId: string]: string }>({})
 
   // Document upload/paste form state
@@ -348,7 +348,7 @@ export default function HomePage() {
     }
   }
 
-  // Handle streaming summary generation with Gemini 3.8 Flash
+  // Handle summary generation via generateText with automatic retry & fallback
   const handleGenerateSummary = async (docId: string) => {
     if (currentUser && currentUser.credits < 1) {
       setSummaryErrors((prev) => ({
@@ -360,12 +360,8 @@ export default function HomePage() {
     }
 
     setSummaryErrors((prev) => ({ ...prev, [docId]: '' }))
-    setActiveStreamingDocId(docId)
+    setGeneratingSummaryDocId(docId)
     setExpandedDocId(docId) // automatically open document details
-    setStreamedSummaries((prev) => ({ ...prev, [docId]: '' }))
-
-    // Optimistically deduct 1 credit from UI
-    setCurrentUser((prev) => (prev ? { ...prev, credits: Math.max(0, prev.credits - 1) } : null))
 
     try {
       const endpoint = `/api/documents/${docId}/summary`
@@ -373,80 +369,61 @@ export default function HomePage() {
         method: 'POST',
       })
 
-      const remainingHeader = res.headers.get('X-Remaining-Credits')
-      if (remainingHeader !== null) {
-        const parsedCredits = parseInt(remainingHeader, 10)
-        if (!isNaN(parsedCredits)) {
-          setCurrentUser((prev) => (prev ? { ...prev, credits: parsedCredits } : null))
-        }
-      }
+      const data = await res.json().catch(() => null)
+      addLog(endpoint, 'POST', res.status, data)
 
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({ error: 'Failed to generate summary' }))
-        const errorText = errJson.error || `Summary request failed with HTTP ${res.status}`
-        addLog(endpoint, 'POST', res.status, errJson)
+      if (!res.ok || !data) {
+        const errorText =
+          data?.error ||
+          `Summary generation failed with HTTP ${res.status}. Please check your connection or GEMINI_API_KEY.`
         setSummaryErrors((prev) => ({
           ...prev,
           [docId]: errorText,
         }))
-        // Refund credit on error and keep expanded to show alert
+        // Refresh profile to verify credits remained unchanged
         fetchCurrentUser()
-        setActiveStreamingDocId(null)
-        setExpandedDocId(docId)
         return
       }
 
-      const modelUsed = res.headers.get('X-Model-Used') || 'gemini-3.8-flash'
-      addLog(endpoint, 'POST', 200, { status: `Streaming started (${modelUsed})` })
-
-      const reader = res.body?.getReader()
-      if (!reader) {
-        throw new Error('ReadableStream not supported on this response')
-      }
-
-      const decoder = new TextDecoder()
-      let accumulatedSummary = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        const chunk = decoder.decode(value, { stream: true })
-        accumulatedSummary += chunk
-        setStreamedSummaries((prev) => ({
-          ...prev,
-          [docId]: accumulatedSummary,
-        }))
-      }
-
-      // If the summary stream returned empty content, display an error alert
-      if (!accumulatedSummary.trim()) {
-        const emptyMsg = 'The summary stream returned an empty response. Please verify your GEMINI_API_KEY and document contents.'
+      if (!data.summary || !data.summary.trim()) {
+        const emptyMsg =
+          'The AI model returned an empty summary. No credits were deducted. Please try again.'
         setSummaryErrors((prev) => ({
           ...prev,
           [docId]: emptyMsg,
         }))
-        addLog(endpoint, 'POST', 500, { error: emptyMsg })
-        fetchCurrentUser() // refresh credits
-        setExpandedDocId(docId)
         return
       }
 
-      // Update document item in state with saved summary
+      // Update remaining credits from the server response
+      if (typeof data.credits === 'number') {
+        setCurrentUser((prev) => (prev ? { ...prev, credits: data.credits } : null))
+      }
+
+      // Store model name used
+      if (data.modelUsed) {
+        setSummaryModelUsed((prev) => ({
+          ...prev,
+          [docId]: data.modelUsed,
+        }))
+      }
+
+      // Update document item in state with saved complete summary
       setDocuments((prevDocs) =>
-        prevDocs.map((d) => (d.id === docId ? { ...d, summary: accumulatedSummary } : d))
+        prevDocs.map((d) => (d.id === docId ? { ...d, summary: data.summary } : d))
       )
     } catch (err) {
-      console.error('Error while streaming summary:', err)
+      console.error('Error while generating summary:', err)
       const errorMsg =
-        err instanceof Error ? err.message : 'Stream connection interrupted. Please try again.'
+        err instanceof Error
+          ? err.message
+          : 'Network connection error while contacting summary service.'
       setSummaryErrors((prev) => ({
         ...prev,
-        [docId]: `Streaming error: ${errorMsg}`,
+        [docId]: errorMsg,
       }))
-      fetchCurrentUser()
-      setExpandedDocId(docId)
     } finally {
-      setActiveStreamingDocId(null)
+      setGeneratingSummaryDocId(null)
     }
   }
 
@@ -612,7 +589,7 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* Gemini 3.8 Flash Summarizer Metric */}
+              {/* Gemini AI Summarizer Metric */}
               <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-md flex flex-col justify-between">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-semibold text-purple-400 flex items-center gap-1.5">
@@ -620,15 +597,15 @@ export default function HomePage() {
                     AI Study Summarizer
                   </span>
                   <span className="text-[11px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                    gemini-3.8-flash
+                    generateText Engine
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 mb-2 leading-relaxed">
-                  Generates Executive Overview, Key Concepts, and Actionable Takeaways via streamText and saves to Document.
+                  Generates Executive Overview, Key Concepts, and Actionable Takeaways. Fallback: 3.5-flash-lite → 3.1-flash-lite → 3.8-flash.
                 </p>
                 <div className="text-[11px] text-amber-300 flex items-center gap-1.5">
                   <Coins className="w-3.5 h-3.5" />
-                  Costs 1 Credit per summary
+                  Only deducted after full completion (1 Credit)
                 </div>
               </div>
             </div>
@@ -859,9 +836,10 @@ export default function HomePage() {
                 <div className="space-y-4">
                   {documents.map((doc) => {
                     const isExpanded = expandedDocId === doc.id
-                    const isStreaming = activeStreamingDocId === doc.id
-                    const currentSummary = streamedSummaries[doc.id] || doc.summary
+                    const isGenerating = generatingSummaryDocId === doc.id
+                    const currentSummary = doc.summary
                     const docSummaryError = summaryErrors[doc.id]
+                    const docModelUsed = summaryModelUsed[doc.id]
 
                     return (
                       <div
@@ -912,17 +890,17 @@ export default function HomePage() {
                             {/* Generate Summary Button */}
                             <button
                               onClick={() => handleGenerateSummary(doc.id)}
-                              disabled={isStreaming || currentUser.credits < 1}
+                              disabled={isGenerating || currentUser.credits < 1}
                               className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition shadow-md ${
                                 currentSummary
                                   ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
                                   : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-purple-600/20'
                               } disabled:opacity-40 disabled:cursor-not-allowed`}
                             >
-                              {isStreaming ? (
+                              {isGenerating ? (
                                 <>
                                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                  Streaming Summary...
+                                  Generating Summary...
                                 </>
                               ) : (
                                 <>
@@ -959,8 +937,23 @@ export default function HomePage() {
                         {/* Collapsible Content & Summary Section */}
                         {isExpanded && (
                           <div className="border-t border-slate-800/80 bg-slate-900/40 p-4 sm:p-6 space-y-5">
-                            {/* Structured AI Study Summary Box */}
-                            {(currentSummary || isStreaming) && (
+                            {/* Loading State during generateText */}
+                            {isGenerating && (
+                              <div className="rounded-2xl bg-gradient-to-br from-purple-950/30 to-indigo-950/20 border border-purple-500/30 p-6 flex flex-col items-center justify-center text-center space-y-3 shadow-lg">
+                                <div className="w-10 h-10 rounded-2xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
+                                  <RefreshCw className="w-5 h-5 animate-spin" />
+                                </div>
+                                <div>
+                                  <h4 className="text-sm font-semibold text-white">Generating Complete Study Summary...</h4>
+                                  <p className="text-xs text-slate-400 mt-1 max-w-md">
+                                    Analyzing document with Gemini AI (fallback: 3.5-flash-lite → 3.1-flash-lite → 3.8-flash). Only 1 credit will be deducted once the full summary is completed.
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Complete Structured AI Study Summary Box */}
+                            {currentSummary && !isGenerating && (
                               <div className="rounded-2xl bg-gradient-to-br from-slate-900 to-purple-950/20 border border-purple-500/30 p-5 shadow-lg shadow-purple-950/20">
                                 <div className="flex items-center justify-between pb-3 mb-3 border-b border-purple-500/20">
                                   <div className="flex items-center gap-2">
@@ -971,23 +964,17 @@ export default function HomePage() {
                                       Structured Study Summary
                                     </span>
                                     <span className="text-[10px] text-slate-400">
-                                      (Gemini 3.8 Flash)
+                                      ({docModelUsed ? docModelUsed : 'Gemini AI'})
                                     </span>
                                   </div>
 
-                                  {isStreaming && (
-                                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 animate-pulse">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping" />
-                                      Streaming Live Tokens...
-                                    </span>
-                                  )}
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                    <CheckCircle2 className="w-3 h-3" />
+                                    Complete & Saved
+                                  </span>
                                 </div>
 
-                                <MarkdownSummaryViewer content={currentSummary || ''} />
-
-                                {isStreaming && (
-                                  <span className="inline-block w-2 h-4 bg-indigo-400 animate-pulse ml-1 align-middle" />
-                                )}
+                                <MarkdownSummaryViewer content={currentSummary} />
                               </div>
                             )}
 
