@@ -45,6 +45,14 @@ export async function GET(request: NextRequest) {
   try {
     const documents = await prisma.document.findMany({
       where: { userId: user.id },
+      include: {
+        flashcards: {
+          orderBy: { createdAt: 'asc' },
+        },
+        quizQuestions: {
+          orderBy: { createdAt: 'asc' },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     })
 

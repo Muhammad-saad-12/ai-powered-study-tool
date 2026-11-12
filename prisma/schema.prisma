@@ -18,13 +18,35 @@ model User {
 }
 
 model Document {
-  id        String   @id @default(cuid())
-  title     String
-  content   String   @db.Text
-  summary   String?  @db.Text
-  fileType  String
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String         @id @default(cuid())
+  title         String
+  content       String         @db.Text
+  summary       String?        @db.Text
+  fileType      String
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  flashcards    Flashcard[]
+  quizQuestions QuizQuestion[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model Flashcard {
+  id         String   @id @default(cuid())
+  front      String   @db.Text
+  back       String   @db.Text
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+}
+
+model QuizQuestion {
+  id           String   @id @default(cuid())
+  question     String   @db.Text
+  options      String[]
+  correctIndex Int
+  explanation  String   @db.Text
+  documentId   String
+  document     Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
 }

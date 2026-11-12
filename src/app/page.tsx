@@ -26,6 +26,13 @@ import {
   Layers,
   BookOpen,
   Bot,
+  RotateCw,
+  ChevronLeft,
+  ChevronRight,
+  HelpCircle,
+  Check,
+  X,
+  Award,
 } from 'lucide-react'
 
 interface User {
@@ -36,6 +43,24 @@ interface User {
   updatedAt?: string
 }
 
+interface Flashcard {
+  id: string
+  front: string
+  back: string
+  documentId: string
+  createdAt: string
+}
+
+interface QuizQuestion {
+  id: string
+  question: string
+  options: string[]
+  correctIndex: number
+  explanation: string
+  documentId: string
+  createdAt: string
+}
+
 interface DocumentItem {
   id: string
   title: string
@@ -43,6 +68,8 @@ interface DocumentItem {
   summary?: string | null
   fileType: string
   userId: string
+  flashcards?: Flashcard[]
+  quizQuestions?: QuizQuestion[]
   createdAt: string
   updatedAt: string
 }
@@ -121,6 +148,310 @@ function MarkdownSummaryViewer({ content }: { content: string }) {
   )
 }
 
+// Interactive Flip-Card Flashcard Deck Component
+function FlashcardDeckViewer({ flashcards }: { flashcards: Flashcard[] }) {
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [isFlipped, setIsFlipped] = useState(false)
+
+  if (!flashcards || flashcards.length === 0) {
+    return (
+      <div className="py-8 text-center text-slate-500 text-xs">
+        No flashcards available in this deck.
+      </div>
+    )
+  }
+
+  const currentCard = flashcards[currentIndex]
+
+  const handleNext = () => {
+    if (currentIndex < flashcards.length - 1) {
+      setIsFlipped(false)
+      setCurrentIndex((prev) => prev + 1)
+    }
+  }
+
+  const handlePrev = () => {
+    if (currentIndex > 0) {
+      setIsFlipped(false)
+      setCurrentIndex((prev) => prev - 1)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header controls & counter */}
+      <div className="flex items-center justify-between text-xs text-slate-400 px-1">
+        <span className="font-semibold text-slate-300">
+          Card {currentIndex + 1} of {flashcards.length}
+        </span>
+        <span className="text-slate-500 flex items-center gap-1.5">
+          <RotateCw className="w-3.5 h-3.5 text-indigo-400" />
+          Click card to flip
+        </span>
+      </div>
+
+      {/* The 3D-styled Flashcard */}
+      <div
+        onClick={() => setIsFlipped(!isFlipped)}
+        className="cursor-pointer select-none relative min-h-[220px] rounded-2xl p-6 sm:p-8 flex flex-col justify-between transition-all duration-300 transform hover:scale-[1.01] border shadow-xl bg-gradient-to-br from-slate-900 to-slate-950 border-indigo-500/30 hover:border-indigo-500/60"
+      >
+        {/* Top badge on card */}
+        <div className="flex items-center justify-between">
+          <span
+            className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase border ${
+              isFlipped
+                ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30'
+            }`}
+          >
+            {isFlipped ? 'Answer / Explanation (Back)' : 'Core Concept / Prompt (Front)'}
+          </span>
+          <span className="text-[11px] text-slate-500 font-mono">
+            #{currentIndex + 1}
+          </span>
+        </div>
+
+        {/* Card content */}
+        <div className="my-auto py-4 text-center">
+          <p
+            className={`text-base sm:text-lg font-medium leading-relaxed transition-all duration-200 ${
+              isFlipped ? 'text-amber-200' : 'text-white font-semibold'
+            }`}
+          >
+            {isFlipped ? currentCard.back : currentCard.front}
+          </p>
+        </div>
+
+        {/* Bottom hint */}
+        <div className="text-center text-[11px] text-slate-500">
+          {isFlipped ? 'Click to flip back to question' : 'Click anywhere on card to reveal answer'}
+        </div>
+      </div>
+
+      {/* Deck Navigation Controls */}
+      <div className="flex items-center justify-between pt-1">
+        <button
+          onClick={handlePrev}
+          disabled={currentIndex === 0}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold text-slate-300 border border-slate-800 transition"
+        >
+          <ChevronLeft className="w-4 h-4" />
+          Previous
+        </button>
+
+        {/* Dot Progress Indicators */}
+        <div className="flex items-center gap-1.5">
+          {flashcards.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => {
+                setIsFlipped(false)
+                setCurrentIndex(idx)
+              }}
+              className={`w-2 h-2 rounded-full transition-all ${
+                idx === currentIndex
+                  ? 'w-6 bg-indigo-500'
+                  : 'bg-slate-700 hover:bg-slate-600'
+              }`}
+              title={`Jump to card ${idx + 1}`}
+            />
+          ))}
+        </div>
+
+        <button
+          onClick={handleNext}
+          disabled={currentIndex === flashcards.length - 1}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold text-slate-300 border border-slate-800 transition"
+        >
+          Next
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// Interactive Multiple-Choice Quiz Component with Instant Grading
+function InteractiveQuizViewer({ questions }: { questions: QuizQuestion[] }) {
+  const [selectedAnswers, setSelectedAnswers] = useState<{ [qIndex: number]: number }>({})
+
+  if (!questions || questions.length === 0) {
+    return (
+      <div className="py-8 text-center text-slate-500 text-xs">
+        No quiz questions available for this document.
+      </div>
+    )
+  }
+
+  const answeredCount = Object.keys(selectedAnswers).length
+  const correctCount = questions.reduce((acc, q, idx) => {
+    return selectedAnswers[idx] === q.correctIndex ? acc + 1 : acc
+  }, 0)
+
+  const handleSelectOption = (qIndex: number, optionIndex: number) => {
+    setSelectedAnswers((prev) => ({
+      ...prev,
+      [qIndex]: optionIndex,
+    }))
+  }
+
+  const handleResetQuiz = () => {
+    setSelectedAnswers({})
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Quiz Header & Score Bar */}
+      <div className="flex items-center justify-between p-4 rounded-xl bg-slate-900/80 border border-slate-800 text-xs">
+        <div>
+          <span className="font-semibold text-white text-sm block">
+            Comprehension Challenge
+          </span>
+          <span className="text-slate-400">
+            Answer all {questions.length} questions to test your knowledge
+          </span>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="text-right">
+            <span className="text-slate-400 text-[11px] block">Current Score</span>
+            <span className="text-sm font-bold text-amber-400">
+              {correctCount} / {questions.length} ({Math.round((correctCount / questions.length) * 100)}%)
+            </span>
+          </div>
+
+          {answeredCount > 0 && (
+            <button
+              onClick={handleResetQuiz}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium border border-slate-700 transition"
+            >
+              Reset Quiz
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Questions list */}
+      <div className="space-y-6">
+        {questions.map((q, qIndex) => {
+          const selectedOption = selectedAnswers[qIndex]
+          const isAnswered = typeof selectedOption === 'number'
+          const isCorrect = selectedOption === q.correctIndex
+
+          return (
+            <div
+              key={q.id || qIndex}
+              className="p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-4"
+            >
+              {/* Question title */}
+              <div className="flex items-start gap-3">
+                <span className="w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-400 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                  {qIndex + 1}
+                </span>
+                <h4 className="text-sm font-semibold text-white leading-snug">
+                  {q.question}
+                </h4>
+              </div>
+
+              {/* Options */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                {q.options.map((opt, optIndex) => {
+                  let optStyle =
+                    'border-slate-800 bg-slate-900/50 hover:bg-slate-800/80 text-slate-300'
+
+                  if (isAnswered) {
+                    if (optIndex === q.correctIndex) {
+                      // Correct answer is always highlighted in green once answered
+                      optStyle =
+                        'border-emerald-500/60 bg-emerald-500/10 text-emerald-300 font-semibold shadow-emerald-500/10'
+                    } else if (optIndex === selectedOption) {
+                      // Selected answer was incorrect
+                      optStyle =
+                        'border-red-500/60 bg-red-500/10 text-red-300 font-semibold'
+                    } else {
+                      optStyle = 'border-slate-900 bg-slate-950/60 opacity-40 text-slate-500'
+                    }
+                  }
+
+                  return (
+                    <button
+                      key={optIndex}
+                      onClick={() => handleSelectOption(qIndex, optIndex)}
+                      className={`text-left p-3 rounded-xl border text-xs transition-all flex items-center justify-between gap-2 ${optStyle}`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span className="w-5 h-5 rounded-md bg-slate-800/80 flex items-center justify-center text-[10px] font-bold text-slate-400 shrink-0">
+                          {String.fromCharCode(65 + optIndex)}
+                        </span>
+                        <span>{opt}</span>
+                      </div>
+
+                      {isAnswered && optIndex === q.correctIndex && (
+                        <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                      )}
+                      {isAnswered &&
+                        optIndex === selectedOption &&
+                        optIndex !== q.correctIndex && (
+                          <X className="w-4 h-4 text-red-400 shrink-0" />
+                        )}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Explanation Box (Visible immediately after user selects an answer) */}
+              {isAnswered && (
+                <div
+                  className={`p-3.5 rounded-xl border text-xs leading-relaxed transition-all ${
+                    isCorrect
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                      : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 font-bold mb-1">
+                    {isCorrect ? (
+                      <>
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        <span>Correct Answer!</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="w-4 h-4 text-amber-400" />
+                        <span>Incorrect — Correct: Option {String.fromCharCode(65 + q.correctIndex)}</span>
+                      </>
+                    )}
+                  </div>
+                  <p className="text-slate-300 text-[11px] sm:text-xs">
+                    {q.explanation}
+                  </p>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Completion Banner */}
+      {answeredCount === questions.length && (
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-950/60 to-purple-950/60 border border-indigo-500/40 text-center space-y-2">
+          <Award className="w-8 h-8 text-amber-400 mx-auto" />
+          <h4 className="text-sm font-bold text-white">Quiz Completed!</h4>
+          <p className="text-xs text-slate-300">
+            You scored {correctCount} out of {questions.length} questions correctly.
+          </p>
+          <button
+            onClick={handleResetQuiz}
+            className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow transition"
+          >
+            <RotateCw className="w-3.5 h-3.5" />
+            Retake Quiz
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function HomePage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [isLoadingUser, setIsLoadingUser] = useState(true)
@@ -138,10 +469,19 @@ export default function HomePage() {
   const [isLoadingDocs, setIsLoadingDocs] = useState(false)
   const [expandedDocId, setExpandedDocId] = useState<string | null>(null)
 
-  // Complete Summary Generation state (generateText with retry & fallback)
+  // Active study tab per document ('summary' | 'flashcards' | 'quiz' | 'text')
+  const [activeStudyTabs, setActiveStudyTabs] = useState<{
+    [docId: string]: 'summary' | 'flashcards' | 'quiz' | 'text'
+  }>({})
+
+  // Summary generation state
   const [generatingSummaryDocId, setGeneratingSummaryDocId] = useState<string | null>(null)
   const [summaryModelUsed, setSummaryModelUsed] = useState<{ [docId: string]: string }>({})
   const [summaryErrors, setSummaryErrors] = useState<{ [docId: string]: string }>({})
+
+  // Study materials (flashcards & quiz) generation state
+  const [generatingStudyMaterialsDocId, setGeneratingStudyMaterialsDocId] = useState<string | null>(null)
+  const [studyMaterialsErrors, setStudyMaterialsErrors] = useState<{ [docId: string]: string }>({})
 
   // Document upload/paste form state
   const [inputMode, setInputMode] = useState<'upload' | 'paste'>('upload')
@@ -348,7 +688,7 @@ export default function HomePage() {
     }
   }
 
-  // Handle summary generation via generateText with automatic retry & fallback
+  // Handle summary generation via generateText with retry/fallback
   const handleGenerateSummary = async (docId: string) => {
     if (currentUser && currentUser.credits < 1) {
       setSummaryErrors((prev) => ({
@@ -361,7 +701,8 @@ export default function HomePage() {
 
     setSummaryErrors((prev) => ({ ...prev, [docId]: '' }))
     setGeneratingSummaryDocId(docId)
-    setExpandedDocId(docId) // automatically open document details
+    setExpandedDocId(docId)
+    setActiveStudyTabs((prev) => ({ ...prev, [docId]: 'summary' }))
 
     try {
       const endpoint = `/api/documents/${docId}/summary`
@@ -380,7 +721,6 @@ export default function HomePage() {
           ...prev,
           [docId]: errorText,
         }))
-        // Refresh profile to verify credits remained unchanged
         fetchCurrentUser()
         return
       }
@@ -395,12 +735,10 @@ export default function HomePage() {
         return
       }
 
-      // Update remaining credits from the server response
       if (typeof data.credits === 'number') {
         setCurrentUser((prev) => (prev ? { ...prev, credits: data.credits } : null))
       }
 
-      // Store model name used
       if (data.modelUsed) {
         setSummaryModelUsed((prev) => ({
           ...prev,
@@ -408,7 +746,6 @@ export default function HomePage() {
         }))
       }
 
-      // Update document item in state with saved complete summary
       setDocuments((prevDocs) =>
         prevDocs.map((d) => (d.id === docId ? { ...d, summary: data.summary } : d))
       )
@@ -417,13 +754,81 @@ export default function HomePage() {
       const errorMsg =
         err instanceof Error
           ? err.message
-          : 'Network connection error while contacting summary service.'
+          : 'Network error while contacting summary service.'
       setSummaryErrors((prev) => ({
         ...prev,
         [docId]: errorMsg,
       }))
     } finally {
       setGeneratingSummaryDocId(null)
+    }
+  }
+
+  // Handle Flashcards & Quiz generation via generateObject
+  const handleGenerateStudyMaterials = async (docId: string) => {
+    if (currentUser && currentUser.credits < 1) {
+      setStudyMaterialsErrors((prev) => ({
+        ...prev,
+        [docId]: 'Insufficient credits! You need at least 1 credit to generate flashcards & quiz.',
+      }))
+      setExpandedDocId(docId)
+      return
+    }
+
+    setStudyMaterialsErrors((prev) => ({ ...prev, [docId]: '' }))
+    setGeneratingStudyMaterialsDocId(docId)
+    setExpandedDocId(docId)
+    // Default open flashcards tab to show newly generated cards
+    setActiveStudyTabs((prev) => ({ ...prev, [docId]: 'flashcards' }))
+
+    try {
+      const endpoint = `/api/documents/${docId}/study-materials`
+      const res = await fetch(endpoint, {
+        method: 'POST',
+      })
+
+      const data = await res.json().catch(() => null)
+      addLog(endpoint, 'POST', res.status, data)
+
+      if (!res.ok || !data) {
+        const errorText =
+          data?.error ||
+          `Failed to generate study materials with HTTP ${res.status}. Please try again.`
+        setStudyMaterialsErrors((prev) => ({
+          ...prev,
+          [docId]: errorText,
+        }))
+        fetchCurrentUser()
+        return
+      }
+
+      if (typeof data.credits === 'number') {
+        setCurrentUser((prev) => (prev ? { ...prev, credits: data.credits } : null))
+      }
+
+      setDocuments((prevDocs) =>
+        prevDocs.map((d) =>
+          d.id === docId
+            ? {
+                ...d,
+                flashcards: data.flashcards || [],
+                quizQuestions: data.quizQuestions || [],
+              }
+            : d
+        )
+      )
+    } catch (err) {
+      console.error('Error while generating study materials:', err)
+      const errorMsg =
+        err instanceof Error
+          ? err.message
+          : 'Network error while contacting study materials service.'
+      setStudyMaterialsErrors((prev) => ({
+        ...prev,
+        [docId]: errorMsg,
+      }))
+    } finally {
+      setGeneratingStudyMaterialsDocId(null)
     }
   }
 
@@ -466,7 +871,7 @@ export default function HomePage() {
                 AI Productivity Platform
               </span>
               <span className="ml-2 px-2 py-0.5 text-xs font-medium rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                Gemini 3.8 Flash Summary Stream
+                Summaries • Flashcards • Quizzes
               </span>
             </div>
           </div>
@@ -509,7 +914,7 @@ export default function HomePage() {
                     <span className="text-indigo-400">{currentUser.email}</span>
                   </h1>
                   <p className="text-slate-400 text-sm mt-1">
-                    Upload documents or paste text to parse content and stream structured Markdown study summaries powered by Google Gemini 3.8 Flash.
+                    Upload documents to extract study materials: study summaries, active-recall flashcard decks, and interactive quizzes powered by Gemini AI.
                   </p>
                 </div>
 
@@ -589,23 +994,23 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* Gemini AI Summarizer Metric */}
+              {/* AI Study Engine Metric */}
               <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-md flex flex-col justify-between">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-semibold text-purple-400 flex items-center gap-1.5">
                     <Bot className="w-4 h-4 text-purple-400" />
-                    AI Study Summarizer
+                    AI Study Engine
                   </span>
                   <span className="text-[11px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                    generateText Engine
+                    Structured Output
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 mb-2 leading-relaxed">
-                  Generates Executive Overview, Key Concepts, and Actionable Takeaways. Fallback: 3.5-flash-lite → 3.1-flash-lite → 3.8-flash.
+                  Generates 6 Flashcards & 5 Multiple-Choice Questions using `generateObject` and fallback loop.
                 </p>
                 <div className="text-[11px] text-amber-300 flex items-center gap-1.5">
                   <Coins className="w-3.5 h-3.5" />
-                  Only deducted after full completion (1 Credit)
+                  Costs 1 Credit per generation
                 </div>
               </div>
             </div>
@@ -796,16 +1201,16 @@ export default function HomePage() {
               </form>
             </div>
 
-            {/* List of Uploaded Documents with Summary Generation */}
+            {/* List of Uploaded Documents with Interactive Study Tabs */}
             <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 sm:p-8 shadow-xl">
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h2 className="text-lg font-bold text-white flex items-center gap-2">
                     <Layers className="w-5 h-5 text-indigo-400" />
-                    Your Uploaded Documents & AI Summaries
+                    Your Documents & Interactive Study Decks
                   </h2>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Stream comprehensive Markdown study summaries live using Gemini 3.8 Flash
+                    Explore AI Study Summaries, Flashcard Decks, and Interactive Quizzes
                   </p>
                 </div>
 
@@ -836,9 +1241,15 @@ export default function HomePage() {
                 <div className="space-y-4">
                   {documents.map((doc) => {
                     const isExpanded = expandedDocId === doc.id
-                    const isGenerating = generatingSummaryDocId === doc.id
+                    const isGeneratingSummary = generatingSummaryDocId === doc.id
+                    const isGeneratingStudyMaterials = generatingStudyMaterialsDocId === doc.id
                     const currentSummary = doc.summary
+                    const flashcards = doc.flashcards || []
+                    const quizQuestions = doc.quizQuestions || []
+                    const activeTab = activeStudyTabs[doc.id] || 'summary'
+
                     const docSummaryError = summaryErrors[doc.id]
+                    const docMaterialsError = studyMaterialsErrors[doc.id]
                     const docModelUsed = summaryModelUsed[doc.id]
 
                     return (
@@ -856,7 +1267,7 @@ export default function HomePage() {
                               <FileText className="w-5 h-5" />
                             </div>
                             <div className="min-w-0">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <h3 className="text-sm font-semibold text-white truncate max-w-xs sm:max-w-md">
                                   {doc.title}
                                 </h3>
@@ -864,13 +1275,25 @@ export default function HomePage() {
                                   {doc.fileType}
                                 </span>
                                 {currentSummary && (
-                                  <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-md bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-md bg-purple-500/10 text-purple-400 border border-purple-500/20">
                                     <Sparkles className="w-2.5 h-2.5" />
-                                    Summarized
+                                    Summary
+                                  </span>
+                                )}
+                                {flashcards.length > 0 && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                    <Layers className="w-2.5 h-2.5" />
+                                    {flashcards.length} Flashcards
+                                  </span>
+                                )}
+                                {quizQuestions.length > 0 && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                    <HelpCircle className="w-2.5 h-2.5" />
+                                    {quizQuestions.length} Quiz Qs
                                   </span>
                                 )}
                               </div>
-                              <div className="flex items-center gap-3 text-xs text-slate-400 mt-0.5">
+                              <div className="flex items-center gap-3 text-xs text-slate-400 mt-1">
                                 <span className="flex items-center gap-1">
                                   <Clock className="w-3 h-3 text-slate-500" />
                                   {new Date(doc.createdAt).toLocaleDateString()} at{' '}
@@ -886,26 +1309,45 @@ export default function HomePage() {
                           </div>
 
                           {/* Action Buttons */}
-                          <div className="flex items-center gap-2.5 shrink-0 self-end sm:self-auto">
+                          <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto flex-wrap">
                             {/* Generate Summary Button */}
                             <button
                               onClick={() => handleGenerateSummary(doc.id)}
-                              disabled={isGenerating || currentUser.credits < 1}
+                              disabled={isGeneratingSummary || isGeneratingStudyMaterials || currentUser.credits < 1}
                               className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition shadow-md ${
                                 currentSummary
-                                  ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
-                                  : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-purple-600/20'
+                                  ? 'bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800'
+                                  : 'bg-purple-600 hover:bg-purple-500 text-white shadow-purple-600/20'
                               } disabled:opacity-40 disabled:cursor-not-allowed`}
                             >
-                              {isGenerating ? (
+                              {isGeneratingSummary ? (
                                 <>
                                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                  Generating Summary...
+                                  Summarizing...
+                                </>
+                              ) : (
+                                <>
+                                  <BookOpen className="w-3.5 h-3.5 text-purple-300" />
+                                  {currentSummary ? 'Re-Summary (-1)' : 'Summary (-1)'}
+                                </>
+                              )}
+                            </button>
+
+                            {/* Generate Flashcards & Quiz Button */}
+                            <button
+                              onClick={() => handleGenerateStudyMaterials(doc.id)}
+                              disabled={isGeneratingSummary || isGeneratingStudyMaterials || currentUser.credits < 1}
+                              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-amber-600 to-indigo-600 hover:from-amber-500 hover:to-indigo-500 text-white shadow-md shadow-indigo-600/20 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                            >
+                              {isGeneratingStudyMaterials ? (
+                                <>
+                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                  Generating Deck...
                                 </>
                               ) : (
                                 <>
                                   <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                                  {currentSummary ? 'Regenerate Summary (-1)' : 'Generate Summary (-1)'}
+                                  {flashcards.length > 0 ? 'Regenerate Deck (-1)' : 'Flashcards & Quiz (-1)'}
                                 </>
                               )}
                             </button>
@@ -926,73 +1368,244 @@ export default function HomePage() {
                           </div>
                         </div>
 
-                        {/* Error Alert for Summary */}
+                        {/* Error Alerts */}
                         {docSummaryError && (
                           <div className="mx-4 mb-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-2">
                             <AlertCircle className="w-4 h-4 shrink-0" />
                             <span>{docSummaryError}</span>
                           </div>
                         )}
+                        {docMaterialsError && (
+                          <div className="mx-4 mb-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-2">
+                            <AlertCircle className="w-4 h-4 shrink-0" />
+                            <span>{docMaterialsError}</span>
+                          </div>
+                        )}
 
-                        {/* Collapsible Content & Summary Section */}
+                        {/* Collapsible Content with Interactive Tabs */}
                         {isExpanded && (
                           <div className="border-t border-slate-800/80 bg-slate-900/40 p-4 sm:p-6 space-y-5">
-                            {/* Loading State during generateText */}
-                            {isGenerating && (
-                              <div className="rounded-2xl bg-gradient-to-br from-purple-950/30 to-indigo-950/20 border border-purple-500/30 p-6 flex flex-col items-center justify-center text-center space-y-3 shadow-lg">
-                                <div className="w-10 h-10 rounded-2xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
-                                  <RefreshCw className="w-5 h-5 animate-spin" />
-                                </div>
-                                <div>
-                                  <h4 className="text-sm font-semibold text-white">Generating Complete Study Summary...</h4>
-                                  <p className="text-xs text-slate-400 mt-1 max-w-md">
-                                    Analyzing document with Gemini AI (fallback: 3.5-flash-lite → 3.1-flash-lite → 3.8-flash). Only 1 credit will be deducted once the full summary is completed.
-                                  </p>
-                                </div>
+                            {/* Tab Switcher */}
+                            <div className="flex items-center gap-2 border-b border-slate-800 pb-3 overflow-x-auto">
+                              <button
+                                onClick={() =>
+                                  setActiveStudyTabs((prev) => ({ ...prev, [doc.id]: 'summary' }))
+                                }
+                                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-2 shrink-0 ${
+                                  activeTab === 'summary'
+                                    ? 'bg-purple-600 text-white shadow'
+                                    : 'text-slate-400 hover:text-slate-200 bg-slate-950/60'
+                                }`}
+                              >
+                                <BookOpen className="w-3.5 h-3.5" />
+                                Study Summary
+                                {currentSummary && (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                )}
+                              </button>
+
+                              <button
+                                onClick={() =>
+                                  setActiveStudyTabs((prev) => ({ ...prev, [doc.id]: 'flashcards' }))
+                                }
+                                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-2 shrink-0 ${
+                                  activeTab === 'flashcards'
+                                    ? 'bg-amber-600 text-white shadow'
+                                    : 'text-slate-400 hover:text-slate-200 bg-slate-950/60'
+                                }`}
+                              >
+                                <Layers className="w-3.5 h-3.5" />
+                                Flashcards Deck ({flashcards.length})
+                              </button>
+
+                              <button
+                                onClick={() =>
+                                  setActiveStudyTabs((prev) => ({ ...prev, [doc.id]: 'quiz' }))
+                                }
+                                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-2 shrink-0 ${
+                                  activeTab === 'quiz'
+                                    ? 'bg-indigo-600 text-white shadow'
+                                    : 'text-slate-400 hover:text-slate-200 bg-slate-950/60'
+                                }`}
+                              >
+                                <HelpCircle className="w-3.5 h-3.5" />
+                                Multiple-Choice Quiz ({quizQuestions.length})
+                              </button>
+
+                              <button
+                                onClick={() =>
+                                  setActiveStudyTabs((prev) => ({ ...prev, [doc.id]: 'text' }))
+                                }
+                                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-2 shrink-0 ${
+                                  activeTab === 'text'
+                                    ? 'bg-slate-800 text-white shadow'
+                                    : 'text-slate-400 hover:text-slate-200 bg-slate-950/60'
+                                }`}
+                              >
+                                <FileText className="w-3.5 h-3.5" />
+                                Raw Text ({doc.content.length.toLocaleString()} chars)
+                              </button>
+                            </div>
+
+                            {/* TAB 1: Study Summary */}
+                            {activeTab === 'summary' && (
+                              <div>
+                                {isGeneratingSummary ? (
+                                  <div className="rounded-2xl bg-gradient-to-br from-purple-950/30 to-indigo-950/20 border border-purple-500/30 p-8 flex flex-col items-center justify-center text-center space-y-3 shadow-lg">
+                                    <div className="w-10 h-10 rounded-2xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
+                                      <RefreshCw className="w-5 h-5 animate-spin" />
+                                    </div>
+                                    <h4 className="text-sm font-semibold text-white">
+                                      Generating Complete Study Summary...
+                                    </h4>
+                                    <p className="text-xs text-slate-400 max-w-md">
+                                      Evaluating document with Gemini AI (fallback: 3.5-flash-lite → 3.1-flash-lite → 3.8-flash). Only 1 credit deducted on completion.
+                                    </p>
+                                  </div>
+                                ) : currentSummary ? (
+                                  <div className="rounded-2xl bg-gradient-to-br from-slate-900 to-purple-950/20 border border-purple-500/30 p-5 shadow-lg shadow-purple-950/20">
+                                    <div className="flex items-center justify-between pb-3 mb-3 border-b border-purple-500/20">
+                                      <div className="flex items-center gap-2">
+                                        <div className="w-6 h-6 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center">
+                                          <Bot className="w-3.5 h-3.5" />
+                                        </div>
+                                        <span className="text-xs font-bold text-purple-300">
+                                          Structured Study Summary
+                                        </span>
+                                        <span className="text-[10px] text-slate-400">
+                                          ({docModelUsed ? docModelUsed : 'Gemini AI'})
+                                        </span>
+                                      </div>
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                        <CheckCircle2 className="w-3 h-3" />
+                                        Saved
+                                      </span>
+                                    </div>
+                                    <MarkdownSummaryViewer content={currentSummary} />
+                                  </div>
+                                ) : (
+                                  <div className="p-8 text-center rounded-2xl border border-dashed border-slate-800 bg-slate-950/40 space-y-3">
+                                    <BookOpen className="w-8 h-8 text-slate-600 mx-auto" />
+                                    <div>
+                                      <h4 className="text-sm font-semibold text-slate-300">
+                                        No summary generated yet
+                                      </h4>
+                                      <p className="text-xs text-slate-500 mt-1">
+                                        Generate an executive overview, key concepts, and actionable takeaways.
+                                      </p>
+                                    </div>
+                                    <button
+                                      onClick={() => handleGenerateSummary(doc.id)}
+                                      disabled={currentUser.credits < 1}
+                                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold transition shadow-md shadow-purple-600/20"
+                                    >
+                                      <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                                      Generate Summary (-1 Credit)
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             )}
 
-                            {/* Complete Structured AI Study Summary Box */}
-                            {currentSummary && !isGenerating && (
-                              <div className="rounded-2xl bg-gradient-to-br from-slate-900 to-purple-950/20 border border-purple-500/30 p-5 shadow-lg shadow-purple-950/20">
-                                <div className="flex items-center justify-between pb-3 mb-3 border-b border-purple-500/20">
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-6 h-6 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center">
-                                      <Bot className="w-3.5 h-3.5" />
+                            {/* TAB 2: Flashcards Deck */}
+                            {activeTab === 'flashcards' && (
+                              <div>
+                                {isGeneratingStudyMaterials ? (
+                                  <div className="rounded-2xl bg-gradient-to-br from-amber-950/30 to-indigo-950/20 border border-amber-500/30 p-8 flex flex-col items-center justify-center text-center space-y-3 shadow-lg">
+                                    <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
+                                      <RefreshCw className="w-5 h-5 animate-spin" />
                                     </div>
-                                    <span className="text-xs font-bold text-purple-300">
-                                      Structured Study Summary
-                                    </span>
-                                    <span className="text-[10px] text-slate-400">
-                                      ({docModelUsed ? docModelUsed : 'Gemini AI'})
-                                    </span>
+                                    <h4 className="text-sm font-semibold text-white">
+                                      Generating Flashcard Deck & Quiz...
+                                    </h4>
+                                    <p className="text-xs text-slate-400 max-w-md">
+                                      Generating 6 high-yield active-recall flashcards and 5 multiple-choice questions using Gemini `generateObject`.
+                                    </p>
                                   </div>
+                                ) : flashcards.length > 0 ? (
+                                  <FlashcardDeckViewer flashcards={flashcards} />
+                                ) : (
+                                  <div className="p-8 text-center rounded-2xl border border-dashed border-slate-800 bg-slate-950/40 space-y-3">
+                                    <Layers className="w-8 h-8 text-slate-600 mx-auto" />
+                                    <div>
+                                      <h4 className="text-sm font-semibold text-slate-300">
+                                        No flashcards available
+                                      </h4>
+                                      <p className="text-xs text-slate-500 mt-1">
+                                        Generate 6 active-recall flip cards and 5 multiple-choice quiz questions.
+                                      </p>
+                                    </div>
+                                    <button
+                                      onClick={() => handleGenerateStudyMaterials(doc.id)}
+                                      disabled={currentUser.credits < 1}
+                                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold transition shadow-md shadow-amber-600/20"
+                                    >
+                                      <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                                      Generate Flashcards & Quiz (-1 Credit)
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
 
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                                    <CheckCircle2 className="w-3 h-3" />
-                                    Complete & Saved
+                            {/* TAB 3: Multiple-Choice Quiz */}
+                            {activeTab === 'quiz' && (
+                              <div>
+                                {isGeneratingStudyMaterials ? (
+                                  <div className="rounded-2xl bg-gradient-to-br from-indigo-950/30 to-purple-950/20 border border-indigo-500/30 p-8 flex flex-col items-center justify-center text-center space-y-3 shadow-lg">
+                                    <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                                      <RefreshCw className="w-5 h-5 animate-spin" />
+                                    </div>
+                                    <h4 className="text-sm font-semibold text-white">
+                                      Generating Comprehension Quiz...
+                                    </h4>
+                                    <p className="text-xs text-slate-400 max-w-md">
+                                      Synthesizing questions and explanations with Gemini AI.
+                                    </p>
+                                  </div>
+                                ) : quizQuestions.length > 0 ? (
+                                  <InteractiveQuizViewer questions={quizQuestions} />
+                                ) : (
+                                  <div className="p-8 text-center rounded-2xl border border-dashed border-slate-800 bg-slate-950/40 space-y-3">
+                                    <HelpCircle className="w-8 h-8 text-slate-600 mx-auto" />
+                                    <div>
+                                      <h4 className="text-sm font-semibold text-slate-300">
+                                        No quiz questions available
+                                      </h4>
+                                      <p className="text-xs text-slate-500 mt-1">
+                                        Generate a 5-question multiple choice quiz with instant grading and explanations.
+                                      </p>
+                                    </div>
+                                    <button
+                                      onClick={() => handleGenerateStudyMaterials(doc.id)}
+                                      disabled={currentUser.credits < 1}
+                                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition shadow-md shadow-indigo-600/20"
+                                    >
+                                      <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                                      Generate Flashcards & Quiz (-1 Credit)
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* TAB 4: Raw Text */}
+                            {activeTab === 'text' && (
+                              <div>
+                                <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+                                  <span className="font-semibold text-slate-300 flex items-center gap-1.5">
+                                    <FileText className="w-3.5 h-3.5 text-slate-400" />
+                                    Original Parsed Document Text
+                                  </span>
+                                  <span className="font-mono text-[11px] text-slate-500">
+                                    ID: {doc.id}
                                   </span>
                                 </div>
-
-                                <MarkdownSummaryViewer content={currentSummary} />
+                                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300 font-mono max-h-60 overflow-y-auto whitespace-pre-wrap leading-relaxed select-text">
+                                  {doc.content}
+                                </div>
                               </div>
                             )}
-
-                            {/* Raw Parsed Content */}
-                            <div>
-                              <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-                                <span className="font-semibold text-slate-300 flex items-center gap-1.5">
-                                  <FileText className="w-3.5 h-3.5 text-slate-400" />
-                                  Original Parsed Text Content
-                                </span>
-                                <span className="font-mono text-[11px] text-slate-500">
-                                  ID: {doc.id}
-                                </span>
-                              </div>
-                              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300 font-mono max-h-52 overflow-y-auto whitespace-pre-wrap leading-relaxed select-text">
-                                {doc.content}
-                              </div>
-                            </div>
                           </div>
                         )}
                       </div>
@@ -1171,7 +1784,7 @@ export default function HomePage() {
             <div className="mt-6 text-center text-xs text-slate-500 space-y-1">
               <div>✓ ZOD Schema Validation • bcryptjs (10 rounds)</div>
               <div>✓ JOSE JWT Token in HTTP-Only Cookie</div>
-              <div>✓ Gemini 3.8 Flash Streaming Study Summaries</div>
+              <div>✓ Gemini AI Flashcard Decks & Interactive Quizzes</div>
             </div>
           </div>
         )}
@@ -1179,7 +1792,7 @@ export default function HomePage() {
 
       {/* Footer */}
       <footer className="border-t border-slate-900 py-4 text-center text-xs text-slate-600">
-        AI Productivity Tool • Next.js App Router • Prisma PostgreSQL • Google Gemini 3.8 Flash
+        AI Productivity Tool • Next.js App Router • Prisma PostgreSQL • Google Gemini AI
       </footer>
     </div>
   )
