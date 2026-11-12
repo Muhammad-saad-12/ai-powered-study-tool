@@ -117,7 +117,7 @@ export async function POST(
 
   try {
     const result = streamText({
-      model: google('gemini-2.5-flash'),
+      model: google('gemini-3.8-flash'),
       system: `You are an expert academic tutor and AI productivity assistant.
 Your task is to analyze the document and provide a high-yield, structured Markdown study summary.
 Format your output strictly using the following three Markdown section headers:

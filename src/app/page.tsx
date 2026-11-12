@@ -348,13 +348,14 @@ export default function HomePage() {
     }
   }
 
-  // Handle streaming summary generation with Gemini 2.5 Flash
+  // Handle streaming summary generation with Gemini 3.8 Flash
   const handleGenerateSummary = async (docId: string) => {
     if (currentUser && currentUser.credits < 1) {
       setSummaryErrors((prev) => ({
         ...prev,
         [docId]: 'Insufficient credits! You need at least 1 credit to generate a summary.',
       }))
+      setExpandedDocId(docId)
       return
     }
 
@@ -382,18 +383,20 @@ export default function HomePage() {
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({ error: 'Failed to generate summary' }))
+        const errorText = errJson.error || `Summary request failed with HTTP ${res.status}`
         addLog(endpoint, 'POST', res.status, errJson)
         setSummaryErrors((prev) => ({
           ...prev,
-          [docId]: errJson.error || 'Summary generation failed',
+          [docId]: errorText,
         }))
-        // Refund credit on error
+        // Refund credit on error and keep expanded to show alert
         fetchCurrentUser()
         setActiveStreamingDocId(null)
+        setExpandedDocId(docId)
         return
       }
 
-      addLog(endpoint, 'POST', 200, { status: 'Streaming started (Gemini 2.5 Flash)' })
+      addLog(endpoint, 'POST', 200, { status: 'Streaming started (Gemini 3.8 Flash)' })
 
       const reader = res.body?.getReader()
       if (!reader) {
@@ -414,17 +417,33 @@ export default function HomePage() {
         }))
       }
 
+      // If the summary stream returned empty content, display an error alert
+      if (!accumulatedSummary.trim()) {
+        const emptyMsg = 'The summary stream returned an empty response. Please verify your GEMINI_API_KEY and document contents.'
+        setSummaryErrors((prev) => ({
+          ...prev,
+          [docId]: emptyMsg,
+        }))
+        addLog(endpoint, 'POST', 500, { error: emptyMsg })
+        fetchCurrentUser() // refresh credits
+        setExpandedDocId(docId)
+        return
+      }
+
       // Update document item in state with saved summary
       setDocuments((prevDocs) =>
         prevDocs.map((d) => (d.id === docId ? { ...d, summary: accumulatedSummary } : d))
       )
     } catch (err) {
       console.error('Error while streaming summary:', err)
+      const errorMsg =
+        err instanceof Error ? err.message : 'Stream connection interrupted. Please try again.'
       setSummaryErrors((prev) => ({
         ...prev,
-        [docId]: 'Stream connection interrupted. Please try again.',
+        [docId]: `Streaming error: ${errorMsg}`,
       }))
       fetchCurrentUser()
+      setExpandedDocId(docId)
     } finally {
       setActiveStreamingDocId(null)
     }
@@ -469,7 +488,7 @@ export default function HomePage() {
                 AI Productivity Platform
               </span>
               <span className="ml-2 px-2 py-0.5 text-xs font-medium rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                Gemini 2.5 Flash Summary Stream
+                Gemini 3.8 Flash Summary Stream
               </span>
             </div>
           </div>
@@ -512,7 +531,7 @@ export default function HomePage() {
                     <span className="text-indigo-400">{currentUser.email}</span>
                   </h1>
                   <p className="text-slate-400 text-sm mt-1">
-                    Upload documents or paste text to parse content and stream structured Markdown study summaries powered by Google Gemini 2.5 Flash.
+                    Upload documents or paste text to parse content and stream structured Markdown study summaries powered by Google Gemini 3.8 Flash.
                   </p>
                 </div>
 
@@ -592,7 +611,7 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* Gemini 2.5 Flash Summarizer Metric */}
+              {/* Gemini 3.8 Flash Summarizer Metric */}
               <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-md flex flex-col justify-between">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-semibold text-purple-400 flex items-center gap-1.5">
@@ -600,7 +619,7 @@ export default function HomePage() {
                     AI Study Summarizer
                   </span>
                   <span className="text-[11px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                    gemini-2.5-flash
+                    gemini-3.8-flash
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 mb-2 leading-relaxed">
@@ -808,7 +827,7 @@ export default function HomePage() {
                     Your Uploaded Documents & AI Summaries
                   </h2>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Stream comprehensive Markdown study summaries live using Gemini 2.5 Flash
+                    Stream comprehensive Markdown study summaries live using Gemini 3.8 Flash
                   </p>
                 </div>
 
@@ -951,7 +970,7 @@ export default function HomePage() {
                                       Structured Study Summary
                                     </span>
                                     <span className="text-[10px] text-slate-400">
-                                      (Gemini 2.5 Flash)
+                                      (Gemini 3.8 Flash)
                                     </span>
                                   </div>
 
@@ -1164,7 +1183,7 @@ export default function HomePage() {
             <div className="mt-6 text-center text-xs text-slate-500 space-y-1">
               <div>✓ ZOD Schema Validation • bcryptjs (10 rounds)</div>
               <div>✓ JOSE JWT Token in HTTP-Only Cookie</div>
-              <div>✓ Gemini 2.5 Flash Streaming Study Summaries</div>
+              <div>✓ Gemini 3.8 Flash Streaming Study Summaries</div>
             </div>
           </div>
         )}
@@ -1172,7 +1191,7 @@ export default function HomePage() {
 
       {/* Footer */}
       <footer className="border-t border-slate-900 py-4 text-center text-xs text-slate-600">
-        AI Productivity Tool • Next.js App Router • Prisma PostgreSQL • Google Gemini 2.5 Flash
+        AI Productivity Tool • Next.js App Router • Prisma PostgreSQL • Google Gemini 3.8 Flash
       </footer>
     </div>
   )
