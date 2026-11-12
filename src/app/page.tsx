@@ -396,7 +396,8 @@ export default function HomePage() {
         return
       }
 
-      addLog(endpoint, 'POST', 200, { status: 'Streaming started (Gemini 3.8 Flash)' })
+      const modelUsed = res.headers.get('X-Model-Used') || 'gemini-3.8-flash'
+      addLog(endpoint, 'POST', 200, { status: `Streaming started (${modelUsed})` })
 
       const reader = res.body?.getReader()
       if (!reader) {

@@ -27,6 +27,40 @@ async function getAuthenticatedUser(request: NextRequest) {
   })
 }
 
+// Fallback model list in order of precedence
+const CANDIDATE_MODELS = [
+  { name: 'gemini-3.8-flash', maxRetries: 1 },
+  { name: 'gemini-3.5-flash-lite', maxRetries: 1 },
+  { name: 'gemini-3.6-flash', maxRetries: 1 },
+] as const
+
+function isRetryableOrFallbackError(err: unknown): boolean {
+  if (!err) return false
+
+  const status =
+    (err as { status?: number })?.status ||
+    (err as { statusCode?: number })?.statusCode ||
+    (err as { response?: { status?: number } })?.response?.status
+
+  if (status === 503 || status === 429) {
+    return true
+  }
+
+  const message = (err instanceof Error ? err.message : String(err)).toLowerCase()
+  return (
+    message.includes('503') ||
+    message.includes('429') ||
+    message.includes('resource_exhausted') ||
+    message.includes('unavailable') ||
+    message.includes('overloaded') ||
+    message.includes('quota') ||
+    message.includes('rate limit') ||
+    message.includes('rate_limit') ||
+    message.includes('too many requests') ||
+    message.includes('service unavailable')
+  )
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -79,8 +113,6 @@ export async function POST(
     process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY
 
   if (!apiKey || apiKey === 'dummy-gemini-key-for-development') {
-    // If running in development/test without real Gemini key, handle gracefully
-    // Check if real key is present
     if (!apiKey) {
       return NextResponse.json(
         { error: 'GEMINI_API_KEY is not configured in environment variables' },
@@ -89,7 +121,6 @@ export async function POST(
     }
   }
 
-  // Set fallback env for library consistency
   if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY && process.env.GEMINI_API_KEY) {
     process.env.GOOGLE_GENERATIVE_AI_API_KEY = process.env.GEMINI_API_KEY
   }
@@ -115,10 +146,7 @@ export async function POST(
   // 6. Truncate document content safely to 30,000 characters
   const truncatedContent = (document.content || '').slice(0, 30000)
 
-  try {
-    const result = streamText({
-      model: google('gemini-3.8-flash'),
-      system: `You are an expert academic tutor and AI productivity assistant.
+  const systemPrompt = `You are an expert academic tutor and AI productivity assistant.
 Your task is to analyze the document and provide a high-yield, structured Markdown study summary.
 Format your output strictly using the following three Markdown section headers:
 
@@ -129,46 +157,123 @@ A clear, high-level summary of the document's central thesis, purpose, and backg
 Bullet points highlighting core concepts, technical terms, definitions, and important arguments.
 
 ## Actionable Takeaways
-Concrete conclusions, key lessons, practical implications, or recommended next steps.`,
-      prompt: `Document Title: ${document.title} (${document.fileType.toUpperCase()})
+Concrete conclusions, key lessons, practical implications, or recommended next steps.`
+
+  const userPrompt = `Document Title: ${document.title} (${document.fileType.toUpperCase()})
 
 Document Content:
 ${truncatedContent}
 
-Please generate the structured Markdown study summary now.`,
-      onFinish: async ({ text }) => {
-        try {
-          await prisma.document.update({
-            where: { id: document.id },
-            data: { summary: text },
-          })
-        } catch (dbErr) {
-          console.error('Failed to save document summary to database:', dbErr)
-        }
-      },
-    })
+Please generate the structured Markdown study summary now.`
 
-    return result.toTextStreamResponse({
-      headers: {
-        'X-Remaining-Credits': String(updatedUser.credits),
-      },
-    })
-  } catch (err) {
-    console.error('Error initiating Gemini summary stream:', err)
-    // Refund credit if initialization failed before streaming
+  // 7. Iterate through models with automatic fallback on 503, 429, or empty stream
+  let selectedModel = ''
+  let initialChunk = ''
+  let activeIterator: AsyncIterator<string> | null = null
+  let lastFailureError: unknown = null
+
+  for (const { name: modelName, maxRetries } of CANDIDATE_MODELS) {
+    try {
+      const result = streamText({
+        model: google(modelName),
+        maxRetries,
+        system: systemPrompt,
+        prompt: userPrompt,
+      })
+
+      const iterator = result.textStream[Symbol.asyncIterator]()
+      const firstResult = await iterator.next()
+
+      // Detect empty stream: completed with no text
+      if (firstResult.done && (!firstResult.value || !firstResult.value.trim())) {
+        console.warn(
+          `[Summary Fallback] Model '${modelName}' produced an empty stream. Falling back to next model...`
+        )
+        continue
+      }
+
+      // Model successfully started and produced the initial chunk
+      selectedModel = modelName
+      initialChunk = firstResult.value || ''
+      activeIterator = iterator
+      break
+    } catch (err) {
+      lastFailureError = err
+      const isExpectedFallback = isRetryableOrFallbackError(err)
+      console.warn(
+        `[Summary Fallback] Model '${modelName}' failed (retryable/503/429=${isExpectedFallback}):`,
+        err instanceof Error ? err.message : err
+      )
+
+      // Fall back if 503, 429, or retryable
+      if (isExpectedFallback || CANDIDATE_MODELS[CANDIDATE_MODELS.length - 1].name !== modelName) {
+        continue
+      }
+    }
+  }
+
+  // If all candidate models failed or produced empty streams
+  if (!activeIterator) {
+    console.error('[Summary Fallback] All candidate models failed. Refunding credit.')
     await prisma.user.update({
       where: { id: user.id },
       data: { credits: { increment: 1 } },
     })
 
+    const errorDetails =
+      lastFailureError instanceof Error
+        ? lastFailureError.message
+        : 'All AI models (gemini-3.8-flash, gemini-3.5-flash-lite, gemini-3.6-flash) failed or returned empty streams.'
+
     return NextResponse.json(
       {
-        error:
-          err instanceof Error
-            ? err.message
-            : 'Failed to generate study summary with Gemini',
+        error: `Summary generation failed after fallback attempts: ${errorDetails}`,
       },
-      { status: 500 }
+      { status: 503 }
     )
   }
+
+  // 8. Construct response stream and save full summary to Document record on completion
+  const encoder = new TextEncoder()
+  let accumulatedSummary = initialChunk
+
+  const responseStream = new ReadableStream({
+    async start(controller) {
+      try {
+        if (initialChunk) {
+          controller.enqueue(encoder.encode(initialChunk))
+        }
+
+        while (true) {
+          const { done, value } = await activeIterator!.next()
+          if (done) break
+          if (value) {
+            accumulatedSummary += value
+            controller.enqueue(encoder.encode(value))
+          }
+        }
+
+        controller.close()
+
+        // Persist full summary to Document record in database
+        if (accumulatedSummary.trim()) {
+          await prisma.document.update({
+            where: { id: document.id },
+            data: { summary: accumulatedSummary },
+          })
+        }
+      } catch (streamErr) {
+        console.error('Error during active text stream transmission:', streamErr)
+        controller.error(streamErr)
+      }
+    },
+  })
+
+  return new Response(responseStream, {
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'X-Remaining-Credits': String(updatedUser.credits),
+      'X-Model-Used': selectedModel,
+    },
+  })
 }
