@@ -29,9 +29,9 @@ async function getAuthenticatedUser(request: NextRequest) {
 
 // Fallback model list in order of precedence
 const CANDIDATE_MODELS = [
-  { name: 'gemini-3.8-flash', maxRetries: 1 },
-  { name: 'gemini-3.5-flash-lite', maxRetries: 1 },
-  { name: 'gemini-3.6-flash', maxRetries: 1 },
+  { name: 'gemini-3.5-flash-lite', maxRetries: 0 },
+  { name: 'gemini-3.8-flash', maxRetries: 0 },
+  { name: 'gemini-3.6-flash', maxRetries: 0 },
 ] as const
 
 function isRetryableOrFallbackError(err: unknown): boolean {
@@ -143,8 +143,8 @@ export async function POST(
     },
   })
 
-  // 6. Truncate document content safely to 30,000 characters
-  const truncatedContent = (document.content || '').slice(0, 30000)
+  // 6. Truncate document content safely to 15,000 characters
+  const truncatedContent = (document.content || '').slice(0, 15000)
 
   const systemPrompt = `You are an expert academic tutor and AI productivity assistant.
 Your task is to analyze the document and provide a high-yield, structured Markdown study summary.
@@ -223,7 +223,7 @@ Please generate the structured Markdown study summary now.`
     const errorDetails =
       lastFailureError instanceof Error
         ? lastFailureError.message
-        : 'All AI models (gemini-3.8-flash, gemini-3.5-flash-lite, gemini-3.6-flash) failed or returned empty streams.'
+        : 'All AI models (gemini-3.5-flash-lite, gemini-3.8-flash, gemini-3.6-flash) failed or returned empty streams.'
 
     return NextResponse.json(
       {
