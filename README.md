@@ -15,7 +15,7 @@ An intelligent, developer-first productivity workspace that transforms raw study
 [![Google Gemini](https://img.shields.io/badge/Google_Gemini-Flash_3.x-orange?style=flat-square&logo=google)](https://ai.google.dev/)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 
-[**Live Demo**](https://your-domain.vercel.app) • [**Report Bug**](https://github.com/your-username/ai-powered-productivity-tool/issues) • [**Feature Request**](https://github.com/your-username/ai-powered-productivity-tool/issues)
+[**Live Demo**](https://ai-powered-study-tool-ten.vercel.app/) 
 
 </div>
 
