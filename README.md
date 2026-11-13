@@ -28,12 +28,12 @@ Inspired by Linear and Notion, StudyMind AI features a handcrafted dark zinc aes
 | Split-Panel Study Workspace | Active-Recall Flashcard Deck |
 |:---:|:---:|
 | Document sidebar with inline rename/delete & real-time credit balance badge | 3D interactive flip-cards with front/back reveals and dot progress navigation |
-| *(Workspace screenshot placeholder)* | *(Flashcard deck screenshot placeholder)* |
+| ./public/screenshots/Dashboard.png | ./public/screenshots/flashcards-deck.png |
 
-| Auto-Graded Multiple-Choice Quiz | Structured Markdown Summary |
+| Auto-Graded Multiple-Choice Quiz | Dashboard |
 |:---:|:---:|
 | Instant answer evaluation with correct/incorrect highlighting and explanations | Three-tier breakdown: Executive Overview, Key Concepts, and Actionables |
-| *(Quiz challenge screenshot placeholder)* | *(Executive summary screenshot placeholder)* |
+| ./public/screenshots/interactive-quiz.png | ./public/screenshots/Summary.png |
 
 ---
 
