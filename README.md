@@ -25,15 +25,19 @@ An intelligent, developer-first productivity workspace that transforms raw study
 
 Inspired by Linear and Notion, StudyMind AI features a handcrafted dark zinc aesthetic (`#09090B` / `#18181B`), flat 1px borders, high-contrast monospace metadata counters, and a responsive split-panel workspace.
 
-| Split-Panel Study Workspace | Active-Recall Flashcard Deck |
-|:---:|:---:|
-| Document sidebar with inline rename/delete & real-time credit balance badge | 3D interactive flip-cards with front/back reveals and dot progress navigation |
-| ./public/screenshots/Dashboard.png | ./public/screenshots/flashcards-deck.png |
 
-| Auto-Graded Multiple-Choice Quiz | Dashboard |
-|:---:|:---:|
-| Instant answer evaluation with correct/incorrect highlighting and explanations | Three-tier breakdown: Executive Overview, Key Concepts, and Actionables |
-| ./public/screenshots/interactive-quiz.png | ./public/screenshots/Summary.png |
+### 🖥️  Split-Panel Study Workspace Dashbaord 
+![Dashboard Preview](./public/screenshots/Dashboard.png )
+
+### 📋  Active-Recall Flashcard Deck
+![FlashCard Deck Preview](./public/screenshots/flashcards-deck.png )
+
+### 💬 Auto-Graded Multiple-Choice Quiz
+![Multiple-Choice quiz](./public/screenshots/interactive-quiz.png )
+
+### ⚡ Summary
+![Summary preview](./public/screenshots/Summary.png )
+
 
 ---
 
